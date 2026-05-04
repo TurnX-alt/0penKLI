@@ -58,6 +58,12 @@ jobs:
         if: runner.os == 'Linux'
         run: npm run check:listing-id-pairing
 
+      # Guard: reversible write commands should expose their undo/delete pair.
+      # Existing findings are tracked in scripts/write-delete-pair-baseline.json.
+      - name: Check write/delete pair baseline
+        if: runner.os == 'Linux'
+        run: npm run check:write-delete-pair
+
   # ── Unit tests (vitest shard) ──
   # PR: ubuntu + Node 22 only (fast feedback, 2 jobs).
   # Push to main/dev: full matrix for cross-platform/cross-version coverage (12 jobs).

@@ -1,0 +1,67 @@
+[
+  {
+    "command": "instagram/post",
+    "expected_any_of": [
+      "delete",
+      "remove",
+      "rm"
+    ]
+  },
+  {
+    "command": "jike/create",
+    "expected_any_of": [
+      "delete",
+      "remove",
+      "rm"
+    ]
+  },
+  {
+    "command": "jike/like",
+    "expected_any_of": [
+      "unlike"
+    ]
+  },
+  {
+    "command": "reddit/save",
+    "expected_any_of": [
+      "delete",
+      "remove",
+      "rm",
+      "unsave"
+    ]
+  },
+  {
+    "command": "reddit/subscribe",
+    "expected_any_of": [
+      "unsubscribe"
+    ]
+  },
+  {
+    "command": "twitter/like",
+    "expected_any_of": [
+      "unlike"
+    ]
+  },
+  {
+    "command": "weixin/create-draft",
+    "expected_any_of": [
+      "delete",
+      "delete-draft",
+      "remove",
+      "remove-draft",
+      "rm"
+    ]
+  },
+  {
+    "command": "zhihu/follow",
+    "expected_any_of": [
+      "unfollow"
+    ]
+  },
+  {
+    "command": "zhihu/like",
+    "expected_any_of": [
+      "unlike"
+    ]
+  }
+]

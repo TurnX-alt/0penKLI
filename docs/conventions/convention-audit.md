@@ -37,3 +37,20 @@ The first version reports these categories:
 The scanners are heuristic. Treat reports as prioritized review input by
 default, then turn a specific rule into a strict CI gate only after the current
 violations and exemptions are understood.
+
+## CI Gates
+
+`npm run check:write-delete-pair` enforces `write-without-delete-pair` in
+baseline mode. The baseline file is
+`scripts/write-delete-pair-baseline.json`.
+
+The gate fails only on new violations beyond that baseline. This lets the repo
+adopt the invariant immediately while existing findings are cleaned up in
+separate sweep PRs.
+
+When a sweep fixes existing write/delete pair findings, update the baseline:
+
+```bash
+npm run build
+node scripts/check-write-delete-pair.mjs --update-baseline
+```
