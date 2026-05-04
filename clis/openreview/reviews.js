@@ -100,19 +100,17 @@ cli({
         if (!Number.isInteger(maxLength) || maxLength < 200) {
             throw new ArgumentError('openreview reviews max-length must be an integer >= 200');
         }
-        const path = `/notes?forum=${encodeURIComponent(forum)}&details=replies&limit=1000`;
-        const json = await openreviewFetch(path, `openreview reviews ${forum}`);
-        const notes = Array.isArray(json?.notes) ? json.notes : [];
-        if (!notes.length) {
+        const rootJson = await openreviewFetch(`/notes?id=${encodeURIComponent(forum)}`, `openreview paper ${forum}`);
+        const rootNotes = Array.isArray(rootJson?.notes) ? rootJson.notes : [];
+        const root = rootNotes[0];
+        if (!root) {
             throw new EmptyResultError('openreview', `No forum found with id "${forum}". Confirm the forum id from openreview.net.`);
         }
+        const repliesJson = await openreviewFetch(`/notes?forum=${encodeURIComponent(forum)}&details=replies&limit=1000`, `openreview reviews ${forum}`);
+        const replies = Array.isArray(repliesJson?.notes) ? repliesJson.notes.filter(note => note?.id !== forum) : [];
         // Sort by cdate (creation time) so ordering is deterministic regardless of API order.
-        const sorted = [...notes].sort((a, b) => (a?.cdate ?? 0) - (b?.cdate ?? 0));
-        // Lift the root submission (id === forum) to the top — readers want the paper first.
-        const rootIdx = sorted.findIndex(n => n?.id === forum);
-        const ordered = rootIdx > 0
-            ? [sorted[rootIdx], ...sorted.slice(0, rootIdx), ...sorted.slice(rootIdx + 1)]
-            : sorted;
+        const sorted = [...replies].sort((a, b) => (a?.cdate ?? 0) - (b?.cdate ?? 0));
+        const ordered = [root, ...sorted];
         return ordered.map((note) => {
             const isRoot = note?.id === forum;
             const type = classifyNote(note, isRoot);

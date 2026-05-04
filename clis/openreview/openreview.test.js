@@ -271,10 +271,17 @@ describe('openreview adapter', () => {
                 summary: { value: 'Meta summary' },
             },
         };
-        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ notes: [replyReview, SAMPLE_NOTE, replyDecision, replyMetaReview] }), { status: 200 })));
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+            const href = String(url);
+            if (href.includes('/notes?id=')) {
+                return new Response(JSON.stringify({ notes: [SAMPLE_NOTE] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({ notes: [replyDecision, replyReview, { ...SAMPLE_NOTE }, replyMetaReview] }), { status: 200 });
+        }));
         const reviews = getRegistry().get('openreview/reviews');
         const rows = await reviews.func({ forum: 'abc123XYZ_', 'max-length': 4000 });
         expect(rows[0].type).toBe('PAPER');
+        expect(rows.filter((row) => row.type === 'PAPER')).toHaveLength(1);
         expect(rows[1].type).toBe('REVIEW');
         expect(rows[1].author).toBe('Reviewer_uVwr');
         expect(rows[1].rating).toBe('5');
@@ -289,6 +296,30 @@ describe('openreview adapter', () => {
         expect(rows[3].text).toContain('Decision: Accept (poster)');
     });
 
+    it('reviews still emits PAPER row 0 when forum replies response omits the root note', async () => {
+        const replyReview = {
+            id: 'review1aaa',
+            forum: 'abc123XYZ_',
+            replyto: 'abc123XYZ_',
+            cdate: 1727524900000,
+            invitations: ['ICLR.cc/2025/Conference/Submission1/-/Official_Review'],
+            signatures: ['ICLR.cc/2025/Conference/Submission1/Reviewer_uVwr'],
+            content: { summary: { value: 'Short summary' } },
+        };
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+            const href = String(url);
+            if (href.includes('/notes?id=')) {
+                return new Response(JSON.stringify({ notes: [SAMPLE_NOTE] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({ notes: [replyReview] }), { status: 200 });
+        }));
+        const reviews = getRegistry().get('openreview/reviews');
+        const rows = await reviews.func({ forum: 'abc123XYZ_', 'max-length': 4000 });
+        expect(rows[0].type).toBe('PAPER');
+        expect(rows[0].author).toBe('');
+        expect(rows[1].type).toBe('REVIEW');
+    });
+
     it('reviews truncates long text to max-length with ellipsis', async () => {
         const longReview = {
             id: 'longreview1',
@@ -299,7 +330,13 @@ describe('openreview adapter', () => {
             signatures: ['ICLR.cc/2025/Conference/Submission1/Reviewer_xxxx'],
             content: { summary: { value: 'x'.repeat(5000) } },
         };
-        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ notes: [SAMPLE_NOTE, longReview] }), { status: 200 })));
+        vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url) => {
+            const href = String(url);
+            if (href.includes('/notes?id=')) {
+                return new Response(JSON.stringify({ notes: [SAMPLE_NOTE] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({ notes: [longReview] }), { status: 200 });
+        }));
         const reviews = getRegistry().get('openreview/reviews');
         const rows = await reviews.func({ forum: 'abc123XYZ_', 'max-length': 500 });
         expect(rows[1].text.length).toBe(500);
