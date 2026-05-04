@@ -8,8 +8,14 @@
  */
 
 import { cli, Strategy } from '@jackwener/opencli/registry';
-import { ArgumentError } from '@jackwener/opencli/errors';
-import { detectAuthOrEmpty, parsePrice, parseReviewCount } from './utils.js';
+import {
+    SHOP_COLUMNS,
+    detectAuthOrPageFailure,
+    normalizeShopId,
+    parsePrice,
+    parseReviewCount,
+    wrapDianpingStep,
+} from './utils.js';
 
 cli({
     site: 'dianping',
@@ -22,22 +28,17 @@ cli({
     args: [
         { name: 'shop_id', required: true, positional: true, help: '店铺 ID（来自 search 的 shop_id 列，或 https://www.dianping.com/shop/<id> URL 段）' },
     ],
-    columns: ['field', 'value'],
+    columns: SHOP_COLUMNS,
     func: async (page, kwargs) => {
-        const raw = String(kwargs.shop_id || '').trim();
-        if (!raw) throw new ArgumentError('shop_id', 'must be a non-empty string');
-
-        const idMatch = raw.match(/\/shop\/([^?#/]+)/);
-        const shopId = idMatch ? idMatch[1] : raw;
-        if (!/^[A-Za-z0-9_-]+$/.test(shopId)) {
-            throw new ArgumentError('shop_id', `'${raw}' does not look like a dianping shop id`);
-        }
+        const shopId = normalizeShopId(kwargs.shop_id);
 
         const url = `https://www.dianping.com/shop/${shopId}`;
-        await page.goto(url);
-        await page.wait(3);
+        await wrapDianpingStep(`shop ${shopId} navigation`, async () => {
+            await page.goto(url);
+            await page.wait(3);
+        });
 
-        const data = await page.evaluate(`
+        const data = await wrapDianpingStep(`shop ${shopId} extraction`, () => page.evaluate(`
             (() => {
                 const head = document.querySelector('.shop-head');
                 if (!head) {
@@ -90,12 +91,13 @@ cli({
                     url: location.href,
                 };
             })()
-        `);
+        `));
 
         if (!data || !data.ok) {
-            detectAuthOrEmpty(
+            detectAuthOrPageFailure(
                 { text: String(data?.sample || ''), url: String(data?.url || url) },
                 `shop ${shopId}`,
+                { emptyPatterns: [/商户不存在|店铺不存在|店铺已关闭|页面不存在|404|已下线|没有找到相关商户/i] },
             );
         }
 

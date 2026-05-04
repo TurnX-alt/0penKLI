@@ -8,8 +8,16 @@
  */
 
 import { cli, Strategy } from '@jackwener/opencli/registry';
-import { ArgumentError } from '@jackwener/opencli/errors';
-import { detectAuthOrEmpty, parsePrice, parseReviewCount, resolveCityId } from './utils.js';
+import { ArgumentError, CommandExecutionError } from '@jackwener/opencli/errors';
+import {
+    SEARCH_COLUMNS,
+    detectAuthOrPageFailure,
+    parsePrice,
+    parseReviewCount,
+    requireSearchLimit,
+    resolveCityId,
+    wrapDianpingStep,
+} from './utils.js';
 
 cli({
     site: 'dianping',
@@ -23,15 +31,12 @@ cli({
         { name: 'city', help: '城市名（北京/上海/beijing/...）或 cityId 数字。不传则使用 cookie 默认城市' },
         { name: 'limit', type: 'int', default: 15, help: '返回的店铺数量（最多 15，dianping 单页固定 15 条）' },
     ],
-    columns: ['rank', 'shop_id', 'name', 'rating', 'reviews', 'price', 'cuisine', 'district', 'url'],
+    columns: SEARCH_COLUMNS,
     func: async (page, kwargs) => {
         const keyword = String(kwargs.keyword || '').trim();
         if (!keyword) throw new ArgumentError('keyword', 'must be a non-empty string');
 
-        const limit = Number(kwargs.limit) || 15;
-        if (limit < 1 || limit > 15) {
-            throw new ArgumentError('limit', 'must be between 1 and 15 (dianping single page)');
-        }
+        const limit = requireSearchLimit(kwargs.limit);
 
         const cityId = resolveCityId(kwargs.city);
         const path = cityId
@@ -39,10 +44,12 @@ cli({
             : `/search/keyword/0/0_${encodeURIComponent(keyword)}`;
         const url = `https://www.dianping.com${path}`;
 
-        await page.goto(url);
-        await page.wait(2);
+        await wrapDianpingStep(`search "${keyword}" navigation`, async () => {
+            await page.goto(url);
+            await page.wait(2);
+        });
 
-        const result = await page.evaluate(`
+        const result = await wrapDianpingStep(`search "${keyword}" extraction`, () => page.evaluate(`
             (() => {
                 const items = document.querySelectorAll('#shop-all-list li');
                 if (items.length === 0) {
@@ -93,18 +100,21 @@ cli({
                 });
                 return { ok: true, rows };
             })()
-        `);
+        `));
 
         if (!result || !result.ok) {
-            detectAuthOrEmpty(
+            detectAuthOrPageFailure(
                 { text: String(result?.sample || ''), url: String(result?.url || url) },
                 `search "${keyword}"`,
+                { emptyPatterns: [/没有找到|暂无结果|暂无商户|换个关键词|未找到相关/i] },
             );
         }
 
-        const rows = (result.rows || []).slice(0, limit);
+        const rows = (result.rows || [])
+            .filter((row) => row?.shop_id)
+            .slice(0, limit);
         if (rows.length === 0) {
-            detectAuthOrEmpty({ text: '', url }, `search "${keyword}"`);
+            throw new CommandExecutionError('dianping search parser found result cards but no shop_id values');
         }
         return rows.map((r) => ({
             rank: r.rank,

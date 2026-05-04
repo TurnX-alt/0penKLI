@@ -7,7 +7,12 @@
  * and does NOT require JS hydration, so adapters target it directly.
  */
 
-import { ArgumentError, AuthRequiredError, EmptyResultError } from '@jackwener/opencli/errors';
+import {
+    ArgumentError,
+    AuthRequiredError,
+    CommandExecutionError,
+    EmptyResultError,
+} from '@jackwener/opencli/errors';
 
 /**
  * Common Chinese cities → dianping cityId.
@@ -29,13 +34,16 @@ export const CITY_ID = {
     tianjin: 10, '天津': 10,
     qingdao: 21, '青岛': 21,
     changsha: 344, '长沙': 344,
-    dalian: 18, '大连': 18,
+    dalian: 19, '大连': 19,
     shenyang: 18, '沈阳': 18,
     kunming: 25, '昆明': 25,
     fuzhou: 110, '福州': 110,
     xiamen: 14, '厦门': 14,
     hefei: 26, '合肥': 26,
 };
+
+export const SEARCH_COLUMNS = ['rank', 'shop_id', 'name', 'rating', 'reviews', 'price', 'cuisine', 'district', 'url'];
+export const SHOP_COLUMNS = ['field', 'value'];
 
 /**
  * Resolve a city argument (name or id) to a numeric cityId.
@@ -56,26 +64,65 @@ export function resolveCityId(cityArg) {
     return id;
 }
 
+export function requireSearchLimit(value) {
+    const raw = value == null || value === '' ? 15 : value;
+    const limit = typeof raw === 'number' ? raw : Number(String(raw).trim());
+    if (!Number.isInteger(limit) || limit < 1 || limit > 15) {
+        throw new ArgumentError('limit must be an integer between 1 and 15 (dianping single page)');
+    }
+    return limit;
+}
+
+export function normalizeShopId(rawInput) {
+    const raw = String(rawInput || '').trim();
+    if (!raw) throw new ArgumentError('shop_id must be a non-empty string');
+
+    const idMatch = raw.match(/\/shop\/([^?#/]+)/);
+    const shopId = idMatch ? idMatch[1] : raw;
+    if (!/^[A-Za-z0-9_-]+$/.test(shopId)) {
+        throw new ArgumentError(`'${raw}' does not look like a dianping shop id`);
+    }
+    return shopId;
+}
+
+export function wrapDianpingStep(label, fn) {
+    return Promise.resolve()
+        .then(fn)
+        .catch((err) => {
+            if (err?.code) throw err;
+            const message = err?.message || String(err);
+            throw new CommandExecutionError(`dianping ${label} failed: ${message}`);
+        });
+}
+
 /**
  * Throw the right typed error for a dianping page that didn't render data.
  * The site short-circuits HTML when bot/login checks trip — typically
  * redirects to verify.meituan.com (Yoda icon-tap captcha) or to a login
  * page when the cookie is missing.
  */
-export function detectAuthOrEmpty({ text = '', url = '' }, contextHint) {
-    if (/verify\.meituan\.com|verifyimg|身份核实|请依次点击/.test(url + ' ' + text)) {
+export function detectAuthOrPageFailure({ text = '', url = '' }, contextHint, { emptyPatterns = [] } = {}) {
+    const signal = `${url} ${text}`;
+    if (/verify\.meituan\.com|verifyimg|身份核实|请依次点击|美团安全验证|Yoda/i.test(signal)) {
         throw new AuthRequiredError(
             'dianping.com',
             `dianping ${contextHint} blocked by captcha — open ${url || 'www.dianping.com'} manually in this profile and solve the captcha, then retry`,
         );
     }
-    if (/login\.dianping\.com|account\.dianping\.com|请先登录|未登录|请登录/.test(url + ' ' + text)) {
+    if (/login\.dianping\.com|account\.dianping\.com|请先登录|未登录|请登录/.test(signal)) {
         throw new AuthRequiredError(
             'dianping.com',
             `dianping ${contextHint} requires login — sign in to dianping.com in this profile, then retry`,
         );
     }
-    throw new EmptyResultError(`dianping ${contextHint}`);
+    if (emptyPatterns.some((pattern) => pattern.test(signal))) {
+        throw new EmptyResultError(`dianping ${contextHint}`);
+    }
+    const sample = text ? `; sample: ${String(text).slice(0, 160)}` : '';
+    throw new CommandExecutionError(
+        `dianping ${contextHint} did not render expected data${sample}`,
+        'This usually means dianping changed its HTML, returned an unexpected error page, or the browser profile hit an unrecognized anti-bot state.',
+    );
 }
 
 /**
