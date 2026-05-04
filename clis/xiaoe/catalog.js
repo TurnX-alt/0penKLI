@@ -9,7 +9,7 @@ cli({
     args: [
         { name: 'url', required: true, positional: true, help: '课程页面 URL' },
     ],
-    columns: ['ch', 'chapter', 'no', 'title', 'type', 'resource_id', 'status'],
+    columns: ['ch', 'chapter', 'no', 'title', 'type', 'resource_id', 'url', 'status'],
     pipeline: [
         { navigate: '${{ args.url }}' },
         { wait: 8 },

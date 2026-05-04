@@ -10,7 +10,7 @@ cli({
     args: [
         { name: 'limit', type: 'int', default: 20, help: 'Number of items to return' },
     ],
-    columns: ['title', 'author', 'likes', 'type', 'url'],
+    columns: ['id', 'title', 'author', 'likes', 'type', 'url'],
     pipeline: [
         { navigate: 'https://www.xiaohongshu.com/explore' },
         { tap: {
