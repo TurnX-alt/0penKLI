@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getRegistry } from '@jackwener/opencli/registry';
-import { ArgumentError, EmptyResultError } from '@jackwener/opencli/errors';
+import { ArgumentError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
 import './species.js';
 import './occurrence.js';
 
@@ -21,6 +21,11 @@ describe('gbif species', () => {
     it('promotes empty results to EmptyResultError', async () => {
         global.fetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ results: [] }), { status: 200 })));
         await expect(cmd.func({ query: 'zzz123' })).rejects.toBeInstanceOf(EmptyResultError);
+    });
+
+    it('maps HTTP 429 to CommandExecutionError', async () => {
+        global.fetch = vi.fn(() => Promise.resolve(new Response('rate limited', { status: 429 })));
+        await expect(cmd.func({ query: 'lion' })).rejects.toBeInstanceOf(CommandExecutionError);
     });
 
     it('shapes a species row and prefers nubKey + carries lineage from Backbone', async () => {

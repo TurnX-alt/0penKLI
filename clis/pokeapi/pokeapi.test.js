@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getRegistry } from '@jackwener/opencli/registry';
-import { ArgumentError, EmptyResultError } from '@jackwener/opencli/errors';
+import { ArgumentError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
 import './pokemon.js';
 import './move.js';
 
@@ -21,6 +21,11 @@ describe('pokeapi pokemon', () => {
     it('promotes 404 to EmptyResultError', async () => {
         global.fetch = vi.fn(() => Promise.resolve(new Response('Not Found', { status: 404 })));
         await expect(cmd.func({ ref: 'missingno' })).rejects.toBeInstanceOf(EmptyResultError);
+    });
+
+    it('maps HTTP 429 to CommandExecutionError', async () => {
+        global.fetch = vi.fn(() => Promise.resolve(new Response('rate limited', { status: 429 })));
+        await expect(cmd.func({ ref: 'pikachu' })).rejects.toBeInstanceOf(CommandExecutionError);
     });
 
     it('shapes a pokemon row with stats + types + abilities', async () => {

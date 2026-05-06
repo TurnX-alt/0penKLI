@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getRegistry } from '@jackwener/opencli/registry';
-import { ArgumentError, EmptyResultError } from '@jackwener/opencli/errors';
+import { ArgumentError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
 import './standings.js';
 import './schedule.js';
 
@@ -21,6 +21,11 @@ describe('nhl standings', () => {
     it('promotes empty standings to EmptyResultError', async () => {
         global.fetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ standings: [] }), { status: 200 })));
         await expect(cmd.func({})).rejects.toBeInstanceOf(EmptyResultError);
+    });
+
+    it('maps HTTP 429 to CommandExecutionError', async () => {
+        global.fetch = vi.fn(() => Promise.resolve(new Response('rate limited', { status: 429 })));
+        await expect(cmd.func({})).rejects.toBeInstanceOf(CommandExecutionError);
     });
 
     it('shapes a standings row and computes home/road/L10 records', async () => {

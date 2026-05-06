@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getRegistry } from '@jackwener/opencli/registry';
-import { ArgumentError, EmptyResultError } from '@jackwener/opencli/errors';
+import { ArgumentError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
 import './today.js';
 import './range.js';
 
@@ -16,6 +16,11 @@ describe('nasa-apod today', () => {
 
     it('rejects pre-launch date', async () => {
         await expect(cmd.func({ date: '1990-01-01' })).rejects.toBeInstanceOf(ArgumentError);
+    });
+
+    it('maps HTTP 429 to CommandExecutionError', async () => {
+        global.fetch = vi.fn(() => Promise.resolve(new Response('rate limited', { status: 429 })));
+        await expect(cmd.func({ date: '2026-05-06' })).rejects.toBeInstanceOf(CommandExecutionError);
     });
 
     it('shapes a today row', async () => {

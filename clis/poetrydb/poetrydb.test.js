@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getRegistry } from '@jackwener/opencli/registry';
-import { ArgumentError, EmptyResultError } from '@jackwener/opencli/errors';
+import { ArgumentError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
 import './search.js';
 import './random.js';
 
@@ -22,6 +22,11 @@ describe('poetrydb search', () => {
         const body = { status: 404, reason: 'Not found' };
         global.fetch = vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })));
         await expect(cmd.func({ author: 'nobody' })).rejects.toBeInstanceOf(EmptyResultError);
+    });
+
+    it('maps HTTP 429 to CommandExecutionError', async () => {
+        global.fetch = vi.fn(() => Promise.resolve(new Response('rate limited', { status: 429 })));
+        await expect(cmd.func({ author: 'shakespeare' })).rejects.toBeInstanceOf(CommandExecutionError);
     });
 
     it('shapes a poem row with line counts and joined text', async () => {
