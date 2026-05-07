@@ -1,7 +1,7 @@
 import { cli, Strategy } from '@jackwener/opencli/registry';
 import { AuthRequiredError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
 import { resolveTwitterQueryId, sanitizeQueryId, extractMedia } from './shared.js';
-import { TWITTER_BEARER_TOKEN } from './utils.js';
+import { TWITTER_BEARER_TOKEN, applyTopByEngagement } from './utils.js';
 
 const USER_TWEETS_QUERY_ID = '6fWQaBPK51aGyC_VC7t9GQ';
 const USER_BY_SCREEN_NAME_QUERY_ID = 'IGgvgiOx4QZndDHuD3x9TQ';
@@ -152,6 +152,7 @@ cli({
     args: [
         { name: 'username', type: 'string', positional: true, required: true, help: 'Twitter screen name (with or without @)' },
         { name: 'limit', type: 'int', default: 20, help: 'Max tweets to return' },
+        { name: 'top-by-engagement', type: 'int', default: 0, help: 'When set to N>0, re-rank the tweets by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps the chronological ordering.' },
     ],
     columns: ['id', 'author', 'created_at', 'is_retweet', 'text', 'likes', 'retweets', 'replies', 'views', 'url', 'has_media', 'media_urls'],
     func: async (page, kwargs) => {
@@ -207,7 +208,8 @@ cli({
         }
 
         if (all.length === 0) throw new EmptyResultError(`@${username} has no recent tweets`, 'Account may be private or suspended');
-        return all.slice(0, limit);
+        const trimmed = all.slice(0, limit);
+        return applyTopByEngagement(trimmed, kwargs['top-by-engagement']);
     },
 });
 

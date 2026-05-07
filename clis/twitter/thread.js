@@ -1,7 +1,7 @@
 import { cli, Strategy } from '@jackwener/opencli/registry';
 import { AuthRequiredError, CommandExecutionError } from '@jackwener/opencli/errors';
 import { extractMedia } from './shared.js';
-import { TWITTER_BEARER_TOKEN } from './utils.js';
+import { TWITTER_BEARER_TOKEN, applyTopByEngagement } from './utils.js';
 // ── Twitter GraphQL constants ──────────────────────────────────────────
 const TWEET_DETAIL_QUERY_ID = 'nBS-WpgA6ZG0CyNHD517JQ';
 const FEATURES = {
@@ -103,6 +103,7 @@ cli({
     args: [
         { name: 'tweet-id', positional: true, type: 'string', required: true, help: 'Tweet numeric ID (e.g. 1234567890) or full status URL' },
         { name: 'limit', type: 'int', default: 50 },
+        { name: 'top-by-engagement', type: 'int', default: 0, help: 'When set to N>0, re-rank the thread by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps the conversation\'s structural ordering.' },
     ],
     columns: ['id', 'author', 'text', 'likes', 'retweets', 'url', 'has_media', 'media_urls'],
     func: async (page, kwargs) => {
@@ -149,6 +150,7 @@ cli({
                 break;
             cursor = nextCursor;
         }
-        return allTweets.slice(0, kwargs.limit);
+        const trimmed = allTweets.slice(0, kwargs.limit);
+        return applyTopByEngagement(trimmed, kwargs['top-by-engagement']);
     },
 });

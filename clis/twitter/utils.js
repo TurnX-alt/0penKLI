@@ -196,9 +196,91 @@ export async function attachComposerImage(page, absImagePath, fileInputSelector 
     }
 }
 
+// ── Engagement scoring (P3) ────────────────────────────────────────────
+//
+// Used by tweet-shaped read commands (search / timeline / likes / bookmarks /
+// list-tweets / tweets / thread). Lets callers ask for the top-N tweets by
+// weighted engagement instead of chronological order, so an agent skimming a
+// noisy timeline can surface the actually-interesting tweets first.
+//
+// The weights bias toward "active engagement": bookmarks > retweets > replies
+// > likes > views. Views are log-dampened because they often dwarf all other
+// signals by 2–4 orders of magnitude on viral tweets and would otherwise
+// drown out the active signals.
+//
+// Pure synchronous — exported via __test__ for unit coverage. Missing fields
+// (some adapters don't surface views/replies/bookmarks) coerce to 0 so the
+// formula stays well-defined across every read command's row shape.
+
+const ENGAGEMENT_WEIGHTS = Object.freeze({
+    likes: 1,
+    retweets: 3,
+    replies: 2,
+    bookmarks: 5,
+    viewsLog: 0.5,
+});
+
+/**
+ * Compute the weighted engagement score for a tweet-shaped row.
+ *
+ * Formula: likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5
+ *
+ * - String fields (e.g. views: '12345') are coerced via Number(); non-numeric
+ *   strings become 0 instead of NaN-poisoning the score.
+ * - log10(views+1) so views=0 maps to 0 (not -Infinity).
+ * - Missing fields default to 0 — search returns no `replies`/`bookmarks`,
+ *   bookmarks returns no `views`/`replies`, etc.
+ *
+ * @param {Record<string, unknown>} row
+ * @returns {number} Score, rounded to 2 decimals for stable test fixtures.
+ */
+export function computeEngagementScore(row) {
+    if (!row || typeof row !== 'object') return 0;
+    const num = (key) => {
+        const raw = row[key];
+        if (raw === undefined || raw === null) return 0;
+        const n = Number(raw);
+        return Number.isFinite(n) ? Math.max(0, n) : 0;
+    };
+    const score
+        = num('likes') * ENGAGEMENT_WEIGHTS.likes
+        + num('retweets') * ENGAGEMENT_WEIGHTS.retweets
+        + num('replies') * ENGAGEMENT_WEIGHTS.replies
+        + num('bookmarks') * ENGAGEMENT_WEIGHTS.bookmarks
+        + Math.log10(num('views') + 1) * ENGAGEMENT_WEIGHTS.viewsLog;
+    return Math.round(score * 100) / 100;
+}
+
+/**
+ * Apply --top-by-engagement post-processing. When `topN > 0` the rows are
+ * sorted DESCENDING by computeEngagementScore() and trimmed to the top N.
+ * When `topN <= 0` (the default), rows are returned unchanged so adapters
+ * that don't pass the flag stay backward compatible.
+ *
+ * Stable for ties: rows with the same score retain their original order
+ * (Array.prototype.sort is guaranteed stable in V8 since 2018).
+ *
+ * @param {Array<Record<string, unknown>>} rows
+ * @param {number} topN
+ * @returns {Array<Record<string, unknown>>}
+ */
+export function applyTopByEngagement(rows, topN) {
+    if (!Array.isArray(rows) || rows.length === 0) return rows;
+    const n = Number(topN);
+    if (!Number.isFinite(n) || n <= 0) return rows;
+    return rows
+        .map((row, idx) => ({ row, idx, score: computeEngagementScore(row) }))
+        .sort((a, b) => b.score - a.score || a.idx - b.idx)
+        .slice(0, Math.floor(n))
+        .map(entry => entry.row);
+}
+
 export const __test__ = {
     resolveImagePath,
     resolveImageExtension,
     downloadRemoteImage,
     attachComposerImage,
+    computeEngagementScore,
+    applyTopByEngagement,
+    ENGAGEMENT_WEIGHTS,
 };

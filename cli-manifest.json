@@ -22244,6 +22244,13 @@
         "default": 20,
         "required": false,
         "help": "Maximum number of bookmarks to return (default 20)."
+      },
+      {
+        "name": "top-by-engagement",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "When set to N>0, re-rank the bookmarks by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps the API's native (saved-time) ordering."
       }
     ],
     "columns": [
@@ -22504,6 +22511,13 @@
         "default": 20,
         "required": false,
         "help": "Maximum number of liked tweets to return (default 20)."
+      },
+      {
+        "name": "top-by-engagement",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "When set to N>0, re-rank the liked tweets by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps the API's native (recency) ordering."
       }
     ],
     "columns": [
@@ -22617,6 +22631,13 @@
         "default": 50,
         "required": false,
         "help": ""
+      },
+      {
+        "name": "top-by-engagement",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "When set to N>0, re-rank the list timeline by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps the list's native (recency) ordering."
       }
     ],
     "columns": [
@@ -23003,6 +23024,13 @@
         "default": 15,
         "required": false,
         "help": "Maximum number of tweets to return (default 15). Result count after server-side filtering."
+      },
+      {
+        "name": "top-by-engagement",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "When set to N>0, re-rank the results by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps X's native ordering."
       }
     ],
     "columns": [
@@ -23043,6 +23071,13 @@
         "default": 50,
         "required": false,
         "help": ""
+      },
+      {
+        "name": "top-by-engagement",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "When set to N>0, re-rank the thread by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps the conversation's structural ordering."
       }
     ],
     "columns": [
@@ -23086,6 +23121,13 @@
         "default": 20,
         "required": false,
         "help": "Maximum number of tweets to return (default 20)."
+      },
+      {
+        "name": "top-by-engagement",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "When set to N>0, re-rank the timeline by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps X's native ordering."
       }
     ],
     "columns": [
@@ -23155,6 +23197,13 @@
         "default": 20,
         "required": false,
         "help": "Max tweets to return"
+      },
+      {
+        "name": "top-by-engagement",
+        "type": "int",
+        "default": 0,
+        "required": false,
+        "help": "When set to N>0, re-rank the tweets by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps the chronological ordering."
       }
     ],
     "columns": [

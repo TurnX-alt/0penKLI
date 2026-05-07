@@ -1,7 +1,7 @@
 import { AuthRequiredError, CommandExecutionError } from '@jackwener/opencli/errors';
 import { cli, Strategy } from '@jackwener/opencli/registry';
 import { resolveTwitterQueryId, extractMedia } from './shared.js';
-import { TWITTER_BEARER_TOKEN } from './utils.js';
+import { TWITTER_BEARER_TOKEN, applyTopByEngagement } from './utils.js';
 // ── Twitter GraphQL constants ──────────────────────────────────────────
 const HOME_TIMELINE_QUERY_ID = 'c-CzHF1LboFilMpsx4ZCrQ';
 const HOME_LATEST_TIMELINE_QUERY_ID = 'BKB7oi212Fi7kQtCBGE4zA';
@@ -149,6 +149,7 @@ cli({
             help: 'Which home-timeline feed to read. Default for-you (algorithmic). Use following for the chronological feed of accounts you follow.',
         },
         { name: 'limit', type: 'int', default: 20, help: 'Maximum number of tweets to return (default 20).' },
+        { name: 'top-by-engagement', type: 'int', default: 0, help: 'When set to N>0, re-rank the timeline by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps X\'s native ordering.' },
     ],
     columns: ['id', 'author', 'text', 'likes', 'retweets', 'replies', 'views', 'created_at', 'url', 'has_media', 'media_urls'],
     func: async (page, kwargs) => {
@@ -196,7 +197,8 @@ cli({
                 break;
             cursor = nextCursor;
         }
-        return allTweets.slice(0, limit);
+        const trimmed = allTweets.slice(0, limit);
+        return applyTopByEngagement(trimmed, kwargs['top-by-engagement']);
     },
 });
 export const __test__ = {

@@ -1,6 +1,7 @@
 import { ArgumentError, CommandExecutionError } from '@jackwener/opencli/errors';
 import { cli, Strategy } from '@jackwener/opencli/registry';
 import { extractMedia } from './shared.js';
+import { applyTopByEngagement } from './utils.js';
 
 // ── Public-search operator surface ─────────────────────────────────────
 //
@@ -222,6 +223,7 @@ cli({
         { name: 'has', type: 'string', choices: HAS_CHOICES, help: 'Restrict to tweets that have media|images|videos|links|replies. Maps to X\'s `filter:<has>` operator.' },
         { name: 'exclude', type: 'string', choices: EXCLUDE_CHOICES, help: 'Exclude tweets matching <type>: replies|retweets|media|links. Maps to X\'s `-filter:<x>` operator (retweets → -filter:nativeretweets).' },
         { name: 'limit', type: 'int', default: 15, help: 'Maximum number of tweets to return (default 15). Result count after server-side filtering.' },
+        { name: 'top-by-engagement', type: 'int', default: 0, help: 'When set to N>0, re-rank the results by weighted engagement (likes×1 + retweets×3 + replies×2 + bookmarks×5 + log10(views)×0.5) and return the top N. Default 0 keeps X\'s native ordering.' },
     ],
     columns: ['id', 'author', 'text', 'created_at', 'likes', 'views', 'url', 'has_media', 'media_urls'],
     func: async (page, kwargs) => {
@@ -289,7 +291,8 @@ cli({
                 // ignore parsing errors for individual payloads
             }
         }
-        return results.slice(0, kwargs.limit);
+        const trimmed = results.slice(0, kwargs.limit);
+        return applyTopByEngagement(trimmed, kwargs['top-by-engagement']);
     }
 });
 
