@@ -1,4 +1,41 @@
+import { ArgumentError } from '@jackwener/opencli/errors';
+
 const QUERY_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const TWEET_PATH_PATTERN = /^\/(?:[^/]+|i)\/status\/(\d+)\/?$/;
+const TWEET_HOSTS = new Set(['x.com', 'twitter.com']);
+
+function isTwitterHost(hostname) {
+    return TWEET_HOSTS.has(hostname)
+        || hostname.endsWith('.x.com')
+        || hostname.endsWith('.twitter.com');
+}
+
+export function parseTweetUrl(rawUrl) {
+    const value = String(rawUrl ?? '').trim();
+    if (!value) {
+        throw new ArgumentError('twitter tweet URL cannot be empty', 'Example: opencli twitter retweet https://x.com/jack/status/20');
+    }
+    let parsed;
+    try {
+        parsed = new URL(value);
+    }
+    catch {
+        throw new ArgumentError(`Invalid tweet URL: ${value}`, 'Use a full https://x.com/<user>/status/<id> URL');
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    if (parsed.protocol !== 'https:' || !isTwitterHost(hostname)) {
+        throw new ArgumentError(`Invalid tweet URL host: ${value}`, 'Use a full https://x.com/<user>/status/<id> URL');
+    }
+    const match = parsed.pathname.match(TWEET_PATH_PATTERN);
+    if (!match?.[1]) {
+        throw new ArgumentError(`Could not extract tweet ID from URL: ${value}`, 'Use a full https://x.com/<user>/status/<id> URL');
+    }
+    return {
+        id: match[1],
+        url: parsed.toString(),
+    };
+}
+
 export function sanitizeQueryId(resolved, fallbackId) {
     return typeof resolved === 'string' && QUERY_ID_PATTERN.test(resolved) ? resolved : fallbackId;
 }
@@ -65,4 +102,5 @@ export function extractMedia(legacy) {
 export const __test__ = {
     sanitizeQueryId,
     extractMedia,
+    parseTweetUrl,
 };

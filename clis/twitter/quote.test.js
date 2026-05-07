@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CommandExecutionError } from '@jackwener/opencli/errors';
+import { ArgumentError, CommandExecutionError } from '@jackwener/opencli/errors';
 import { getRegistry } from '@jackwener/opencli/registry';
 import { __test__ } from './quote.js';
 import './quote.js';
@@ -24,6 +24,7 @@ describe('twitter quote helpers', () => {
     it('rejects malformed URLs before any browser interaction', () => {
         expect(() => __test__.buildQuoteComposerUrl('https://x.com/alice/home')).toThrow(/Could not extract tweet ID/);
         expect(() => __test__.buildQuoteComposerUrl('not a url')).toThrow(/Invalid tweet URL/);
+        expect(() => __test__.buildQuoteComposerUrl('https://evil.com/?next=https://x.com/alice/status/2040254679301718161')).toThrow(ArgumentError);
     });
 });
 
@@ -51,6 +52,8 @@ describe('twitter quote command', () => {
         expect(script).toContain('Quote target did not render');
         expect(script).toContain('document.execCommand');
         expect(script).toContain('tweetButton');
+        expect(script).toContain('Quote tweet submission did not complete before timeout');
+        expect(script).toContain('[role="alert"], [data-testid="toast"]');
         expect(result).toEqual([
             {
                 status: 'success',
@@ -87,5 +90,16 @@ describe('twitter quote command', () => {
             url: 'https://x.com/alice/status/2040254679301718161',
             text: 'hi',
         })).rejects.toThrow(CommandExecutionError);
+    });
+
+    it('rejects invalid tweet URLs before navigation', async () => {
+        const cmd = getRegistry().get('twitter/quote');
+        const page = createPageMock([]);
+        await expect(cmd.func(page, {
+            url: 'https://x.com.evil.com/alice/status/2040254679301718161',
+            text: 'hi',
+        })).rejects.toThrow(ArgumentError);
+        expect(page.goto).not.toHaveBeenCalled();
+        expect(page.evaluate).not.toHaveBeenCalled();
     });
 });

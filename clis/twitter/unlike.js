@@ -1,5 +1,6 @@
 import { CommandExecutionError } from '@jackwener/opencli/errors';
 import { cli, Strategy } from '@jackwener/opencli/registry';
+import { parseTweetUrl } from './shared.js';
 
 cli({
     site: 'twitter',
@@ -16,7 +17,8 @@ cli({
     func: async (page, kwargs) => {
         if (!page)
             throw new CommandExecutionError('Browser session required for twitter unlike');
-        await page.goto(kwargs.url);
+        const target = parseTweetUrl(kwargs.url);
+        await page.goto(target.url);
         await page.wait({ selector: '[data-testid="primaryColumn"]' });
         const result = await page.evaluate(`(async () => {
         try {

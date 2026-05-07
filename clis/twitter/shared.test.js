@@ -1,7 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { __test__ } from './shared.js';
+import { ArgumentError } from '@jackwener/opencli/errors';
 
-const { extractMedia } = __test__;
+const { extractMedia, parseTweetUrl } = __test__;
+
+describe('twitter parseTweetUrl', () => {
+    it('accepts exact Twitter/X tweet URLs and preserves query parameters', () => {
+        expect(parseTweetUrl('https://x.com/alice/status/2040254679301718161?s=20')).toEqual({
+            id: '2040254679301718161',
+            url: 'https://x.com/alice/status/2040254679301718161?s=20',
+        });
+        expect(parseTweetUrl('https://mobile.twitter.com/i/status/2040318731105313143')).toEqual({
+            id: '2040318731105313143',
+            url: 'https://mobile.twitter.com/i/status/2040318731105313143',
+        });
+    });
+
+    it('rejects non-https, off-domain, host-suffix, embedded, and path-suffix URLs', () => {
+        const invalid = [
+            'http://x.com/alice/status/2040254679301718161',
+            'https://evil.com/alice/status/2040254679301718161',
+            'https://x.com.evil.com/alice/status/2040254679301718161',
+            'https://evil.com/?next=https://x.com/alice/status/2040254679301718161',
+            'https://x.com/alice/status/2040254679301718161/photo/1',
+        ];
+        for (const url of invalid) {
+            expect(() => parseTweetUrl(url)).toThrow(ArgumentError);
+        }
+    });
+});
 
 describe('twitter extractMedia', () => {
     it('returns false + empty list when legacy has no media', () => {

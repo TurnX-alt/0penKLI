@@ -1,27 +1,17 @@
 import { CommandExecutionError } from '@jackwener/opencli/errors';
 import { cli, Strategy } from '@jackwener/opencli/registry';
+import { parseTweetUrl } from './shared.js';
 
 function extractTweetId(url) {
-    let pathname = '';
-    try {
-        pathname = new URL(url).pathname;
-    }
-    catch {
-        throw new Error(`Invalid tweet URL: ${url}`);
-    }
-    const match = pathname.match(/\/status\/(\d+)/);
-    if (!match?.[1]) {
-        throw new Error(`Could not extract tweet ID from URL: ${url}`);
-    }
-    return match[1];
+    return parseTweetUrl(url).id;
 }
 
 function buildQuoteComposerUrl(url) {
     // Twitter/X quote-tweet compose URL: the `url` param attaches the source
     // tweet as a quoted card. Validating tweet-id shape early surfaces obvious
     // typos before any browser interaction.
-    extractTweetId(url);
-    return `https://x.com/compose/post?url=${encodeURIComponent(url)}`;
+    const parsed = parseTweetUrl(url);
+    return `https://x.com/compose/post?url=${encodeURIComponent(parsed.url)}`;
 }
 
 async function submitQuote(page, text) {
@@ -74,7 +64,25 @@ async function submitQuote(page, text) {
             }
 
             btn.click();
-            return { ok: true, message: 'Quote tweet posted successfully.' };
+
+            const normalize = s => String(s || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim();
+            const expectedText = normalize(textToInsert);
+            for (let i = 0; i < 30; i++) {
+                await new Promise(r => setTimeout(r, 500));
+                const toasts = Array.from(document.querySelectorAll('[role="alert"], [data-testid="toast"]'))
+                    .filter((el) => visible(el));
+                const successToast = toasts.find((el) => /sent|posted|your post was sent|your tweet was sent/i.test(el.textContent || ''));
+                if (successToast) return { ok: true, message: 'Quote tweet posted successfully.' };
+                const alert = toasts.find((el) => /failed|error|try again|not sent|could not/i.test(el.textContent || ''));
+                if (alert) return { ok: false, message: (alert.textContent || 'Quote tweet failed to post.').trim() };
+
+                const visibleBoxes = Array.from(document.querySelectorAll('[data-testid="tweetTextarea_0"]')).filter(visible);
+                const composerStillHasText = visibleBoxes.some((box) =>
+                    normalize(box.innerText || box.textContent || '').includes(expectedText)
+                );
+                if (!composerStillHasText) return { ok: true, message: 'Quote tweet posted successfully.' };
+            }
+            return { ok: false, message: 'Quote tweet submission did not complete before timeout.' };
         } catch (e) {
             return { ok: false, message: e.toString() };
         }

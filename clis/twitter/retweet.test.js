@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CommandExecutionError } from '@jackwener/opencli/errors';
+import { ArgumentError, CommandExecutionError } from '@jackwener/opencli/errors';
 import { getRegistry } from '@jackwener/opencli/registry';
 import './retweet.js';
 import { createPageMock } from '../test-utils.js';
@@ -53,5 +53,15 @@ describe('twitter retweet command', () => {
         await expect(cmd.func(undefined, {
             url: 'https://x.com/alice/status/2040254679301718161',
         })).rejects.toThrow(CommandExecutionError);
+    });
+
+    it('rejects invalid tweet URLs before navigation', async () => {
+        const cmd = getRegistry().get('twitter/retweet');
+        const page = createPageMock([]);
+        await expect(cmd.func(page, {
+            url: 'https://evil.com/?next=https://x.com/alice/status/2040254679301718161',
+        })).rejects.toThrow(ArgumentError);
+        expect(page.goto).not.toHaveBeenCalled();
+        expect(page.evaluate).not.toHaveBeenCalled();
     });
 });
