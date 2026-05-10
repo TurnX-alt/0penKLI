@@ -211,7 +211,7 @@ async function getSapisidHash(sapisid, origin) {
  * Returns the cookie value, or null if neither is present.
  */
 export async function readYoutubeSapisid(page) {
-  const cookies = await page.getCookies({ domain: '.youtube.com' });
+  const cookies = await page.getCookies({ url: 'https://www.youtube.com' });
   return (
     cookies.find((c) => c.name === '__Secure-3PAPISID')?.value
     || cookies.find((c) => c.name === 'SAPISID')?.value

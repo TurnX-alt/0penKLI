@@ -27,7 +27,7 @@ cli({
         await page.goto('https://x.com/explore/tabs/trending');
         await page.wait(3);
         // Verify login via CSRF cookie (read directly from cookie store via CDP)
-        const cookies = await page.getCookies({ domain: '.x.com' });
+        const cookies = await page.getCookies({ url: 'https://x.com' });
         const ct0 = cookies.find((c) => c.name === 'ct0')?.value || null;
         if (!ct0)
             throw new AuthRequiredError('x.com', 'Not logged into x.com (no ct0 cookie)');

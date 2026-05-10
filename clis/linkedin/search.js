@@ -246,7 +246,7 @@ async function fetchJobCards(page, input) {
     const allJobs = [];
     let offset = input.start;
     // Read JSESSIONID directly from the cookie store via CDP — zero page.evaluate round-trip
-    const cookies = await page.getCookies({ domain: '.linkedin.com' });
+    const cookies = await page.getCookies({ url: 'https://www.linkedin.com' });
     const jsession = cookies.find((c) => c.name === 'JSESSIONID')?.value;
     if (!jsession) {
         throw new AuthRequiredError(LINKEDIN_DOMAIN, 'LinkedIn JSESSIONID cookie not found. Please sign in to LinkedIn in the browser.');

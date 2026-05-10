@@ -228,6 +228,7 @@ describe('twitter following command', () => {
         const rows = await command.func(page, { user: '@elonmusk', limit: 3 });
 
         expect(rows.map((row) => row.screen_name)).toEqual(['alice', 'bob', 'carol']);
+        expect(page.getCookies).toHaveBeenCalledWith({ url: 'https://x.com' });
         const userLookupScript = page.evaluate.mock.calls.find(([script]) => script.includes('/UserByScreenName'))?.[0] || '';
         expect(decodeURIComponent(userLookupScript)).toContain('"screen_name":"elonmusk"');
         expect(decodeURIComponent(userLookupScript)).not.toContain('"screen_name":"@elonmusk"');

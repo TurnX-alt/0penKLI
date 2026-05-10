@@ -81,7 +81,7 @@ cli({
     };
 
     // Read csrftoken directly from the cookie store via CDP — zero page.evaluate round-trip
-    const cookies = await page.getCookies({ domain: '.maimai.cn' });
+    const cookies = await page.getCookies({ url: 'https://maimai.cn' });
     const csrftokenFromCookie = cookies.find((c) => c.name === 'csrftoken')?.value || '';
 
     // Execute the search API call in browser context

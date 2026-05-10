@@ -153,7 +153,7 @@ cli({
         let username = (kwargs.username || '').replace(/^@/, '');
         await page.goto('https://x.com');
         await page.wait(3);
-        const cookies = await page.getCookies({ domain: '.x.com' });
+        const cookies = await page.getCookies({ url: 'https://x.com' });
         const ct0 = cookies.find((c) => c.name === 'ct0')?.value || null;
         if (!ct0)
             throw new AuthRequiredError('x.com', 'Not logged into x.com (no ct0 cookie)');

@@ -315,6 +315,7 @@ describe('twitter bookmark-folder command (registry)', () => {
         await expect(command.func(page, { 'folder-id': '12345', limit: 5 }))
             .rejects
             .toThrow(/Not logged into x.com/);
+        expect(page.getCookies).toHaveBeenCalledWith({ url: 'https://x.com' });
     });
 
     it('accepts an opaque safe folder-id and sends it in the GraphQL variables', async () => {
@@ -329,6 +330,7 @@ describe('twitter bookmark-folder command (registry)', () => {
         };
         const result = await command.func(page, { 'folder-id': 'folder_AbC-123', limit: 5 });
         expect(result).toEqual([]);
+        expect(page.getCookies).toHaveBeenCalledWith({ url: 'https://x.com' });
         const fetchScript = page.evaluate.mock.calls[1][0];
         expect(decodeURIComponent(fetchScript)).toContain('"bookmark_collection_id":"folder_AbC-123"');
     });

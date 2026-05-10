@@ -147,5 +147,6 @@ describe('twitter bookmark-folders command (registry)', () => {
             evaluate: vi.fn().mockResolvedValue(null),
         };
         await expect(command.func(page, {})).rejects.toThrow(/Not logged into x.com/);
+        expect(page.getCookies).toHaveBeenCalledWith({ url: 'https://x.com' });
     });
 });
