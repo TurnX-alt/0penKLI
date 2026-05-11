@@ -6,7 +6,7 @@
  * Ref: https://github.com/jackwener/opencli/issues/10
  */
 import { cli, Strategy } from '@jackwener/opencli/registry';
-import { AuthRequiredError } from '@jackwener/opencli/errors';
+import { ArgumentError, AuthRequiredError } from '@jackwener/opencli/errors';
 /**
  * Wait for search results or login wall using MutationObserver (max 5s).
  * Returns 'content' if note items appeared, 'login_wall' if login gate
@@ -52,6 +52,16 @@ export function stripXhsAuthorDateSuffix(value) {
     const stripped = text.replace(/\s*(?:\d{1,2}天前|\d+小时前|\d+分钟前|\d+秒前|刚刚|昨天|前天|\d+周前|\d+个月前|\d{1,2}-\d{1,2}|\d{4}-\d{1,2}-\d{1,2})$/u, '').trim();
     return stripped || text;
 }
+export function parseLimit(raw) {
+    const parsed = Number(raw ?? 20);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+        throw new ArgumentError(`--limit must be an integer between 1 and 100, got ${JSON.stringify(raw)}`);
+    }
+    if (parsed < 1 || parsed > 100) {
+        throw new ArgumentError(`--limit must be between 1 and 100, got ${parsed}`);
+    }
+    return parsed;
+}
 /**
  * Build a "scroll until enough or plateaued" IIFE used in place of a fixed
  * `autoScroll({ times: N })`. Xiaohongshu's search results page lazy-loads
@@ -69,12 +79,25 @@ export function stripXhsAuthorDateSuffix(value) {
  * Exported so the rednote adapter (same DOM shape) can reuse it.
  */
 export function buildScrollUntilJs(targetCount, maxScrolls = 15) {
+    if (!Number.isSafeInteger(targetCount) || targetCount < 1) {
+        throw new ArgumentError(`targetCount must be a positive integer, got ${JSON.stringify(targetCount)}`);
+    }
+    if (!Number.isSafeInteger(maxScrolls) || maxScrolls < 1) {
+        throw new ArgumentError(`maxScrolls must be a positive integer, got ${JSON.stringify(maxScrolls)}`);
+    }
     return `
       (async () => {
+        const isVisibleNote = (el) => {
+          if (el.classList.contains('query-note-item')) return false;
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return false;
+          const style = getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden';
+        };
         const countItems = () => {
           let count = 0;
           for (const el of document.querySelectorAll('section.note-item')) {
-            if (!el.classList.contains('query-note-item')) count++;
+            if (isVisibleNote(el)) count++;
           }
           return count;
         };
@@ -128,6 +151,12 @@ export function buildSearchExtractJs(webHost) {
 
         const cleanText = (value) => (value || '').replace(/\\s+/g, ' ').trim();
         const stripXhsAuthorDateSuffix = ${stripXhsAuthorDateSuffix.toString()};
+        const isVisibleNote = (el) => {
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return false;
+          const style = getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden';
+        };
 
         const results = [];
         const seen = new Set();
@@ -135,6 +164,7 @@ export function buildSearchExtractJs(webHost) {
         document.querySelectorAll('section.note-item').forEach(el => {
           // Skip "related searches" sections
           if (el.classList.contains('query-note-item')) return;
+          if (!isVisibleNote(el)) return;
 
           const titleEl = el.querySelector('.title, .note-title, a.title, .footer .title span');
           const nameEl = el.querySelector('a.author .name, .author-name, .nick-name, .name');
@@ -187,6 +217,7 @@ export const command = cli({
     ],
     columns: ['rank', 'title', 'author', 'likes', 'published_at', 'url'],
     func: async (page, kwargs) => {
+        const limit = parseLimit(kwargs.limit);
         const keyword = encodeURIComponent(kwargs.query);
         await page.goto(`https://www.xiaohongshu.com/search_result?keyword=${keyword}&source=web_search_result_notes`);
         // Wait for search results to render (or login wall to appear).
@@ -199,12 +230,12 @@ export const command = cli({
         // Scroll until enough rows are rendered or the lazy-load plateaus.
         // Replaces the previous fixed `autoScroll({ times: 2 })` which capped
         // extraction at ~13 notes regardless of `--limit` (#1471).
-        await page.evaluate(buildScrollUntilJs(kwargs.limit));
+        await page.evaluate(buildScrollUntilJs(limit));
         const payload = await page.evaluate(buildSearchExtractJs('www.xiaohongshu.com'));
         const data = Array.isArray(payload) ? payload : [];
         return data
             .filter((item) => item.title)
-            .slice(0, kwargs.limit)
+            .slice(0, limit)
             .map((item, i) => ({
             rank: i + 1,
             ...item,

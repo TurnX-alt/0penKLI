@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@jackwener/opencli/registry';
 import { JSDOM } from 'jsdom';
 import { __test__, buildScrollUntilJs, noteIdToDate } from './search.js';
+
+function markVisible(el) {
+    el.getBoundingClientRect = () => ({ width: 100, height: 100 });
+}
 function createPageMock(evaluateResults) {
     const evaluate = vi.fn();
     for (const result of evaluateResults) {
@@ -31,6 +35,16 @@ function createPageMock(evaluateResults) {
     };
 }
 describe('xiaohongshu search', () => {
+    it('rejects invalid limit before browser navigation', async () => {
+        const cmd = getRegistry().get('xiaohongshu/search');
+        const page = createPageMock([]);
+
+        await expect(cmd.func(page, { query: '特斯拉', limit: 0 })).rejects.toMatchObject({
+            code: 'ARGUMENT',
+            message: expect.stringContaining('--limit'),
+        });
+        expect(page.goto).not.toHaveBeenCalled();
+    });
     it('throws a clear error when the search page is blocked by a login wall', async () => {
         const cmd = getRegistry().get('xiaohongshu/search');
         expect(cmd?.func).toBeTypeOf('function');
@@ -148,11 +162,12 @@ describe('xiaohongshu search', () => {
             <span class="count">8</span>
           </section>
         `, { url: 'https://www.xiaohongshu.com/search_result?keyword=test' });
+        markVisible(dom.window.document.querySelector('section.note-item'));
         const page = createPageMock([]);
         page.evaluate.mockImplementationOnce(async () => 'content');
         // scroll-until-enough returns the final visible row count
         page.evaluate.mockImplementationOnce(async () => 1);
-        page.evaluate.mockImplementationOnce(async (script) => Function('document', `return (${script})`)(dom.window.document));
+        page.evaluate.mockImplementationOnce(async (script) => Function('document', 'getComputedStyle', `return (${script})`)(dom.window.document, dom.window.getComputedStyle.bind(dom.window)));
 
         const result = await cmd.func(page, { query: '测试', limit: 1 });
 
@@ -181,6 +196,24 @@ describe('buildScrollUntilJs', () => {
         const js = buildScrollUntilJs(100, 5);
         expect(js).toContain('countItems() >= 100');
         expect(js).toContain('i < 5');
+    });
+    it('counts only visible real note rows', async () => {
+        const dom = new JSDOM(`
+          <section class="note-item" id="visible"></section>
+          <section class="note-item query-note-item" id="query"></section>
+          <section class="note-item" id="hidden" style="display:none"></section>
+        `, { url: 'https://www.xiaohongshu.com/search_result?keyword=test' });
+        markVisible(dom.window.document.querySelector('#visible'));
+        markVisible(dom.window.document.querySelector('#query'));
+        markVisible(dom.window.document.querySelector('#hidden'));
+
+        const result = await Function('document', 'window', 'MutationObserver', 'getComputedStyle', `return (${buildScrollUntilJs(1)})`)(dom.window.document, dom.window, dom.window.MutationObserver, dom.window.getComputedStyle.bind(dom.window));
+
+        expect(result).toBe(1);
+    });
+    it('rejects unsafe helper arguments instead of interpolating them into code', () => {
+        expect(() => buildScrollUntilJs(0)).toThrow(/targetCount/);
+        expect(() => buildScrollUntilJs(10, 0)).toThrow(/maxScrolls/);
     });
 });
 describe('stripXhsAuthorDateSuffix', () => {
