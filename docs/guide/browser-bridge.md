@@ -27,7 +27,7 @@ opencli doctor            # Check extension + daemon connectivity
 
 ## Tab Targeting
 
-Browser commands require an explicit `<sessionname>` positional immediately after `browser`. Use the same session name for a multi-step flow, and use different names to isolate parallel work.
+Browser commands require an explicit `<session>` positional immediately after `browser`. Use the same session name for a multi-step flow, and use different names to isolate parallel work.
 
 ```bash
 opencli browser baidu open https://www.baidu.com/
@@ -41,8 +41,8 @@ opencli browser baidu tab close <targetId>
 
 Key rules:
 
-- `opencli browser <sessionname> open <url>` and `opencli browser <sessionname> tab new [url]` return a `targetId`.
-- `opencli browser <sessionname> tab list` prints the `targetId` values of tabs that already exist.
+- `opencli browser <session> open <url>` and `opencli browser <session> tab new [url]` return a `targetId`.
+- `opencli browser <session> tab list` prints the `targetId` values of tabs that already exist.
 - `--tab <targetId>` routes a single browser command to that specific tab.
 - `tab new` creates a new tab but does not change the default browser target.
 - `tab select <targetId>` makes that tab the default target for later untargeted `opencli browser ...` commands.

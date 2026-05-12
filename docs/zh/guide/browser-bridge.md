@@ -25,7 +25,7 @@ opencli doctor            # 检查扩展 + 守护进程连接
 
 ## 多 Tab 定位
 
-浏览器命令必须紧跟一个 `<sessionname>` 位置参数。同一个多步骤流程使用同一个 session；并行任务使用不同 session 隔离。
+浏览器命令必须紧跟一个 `<session>` 位置参数。同一个多步骤流程使用同一个 session；并行任务使用不同 session 隔离。
 
 ```bash
 opencli browser baidu open https://www.baidu.com/
@@ -39,8 +39,8 @@ opencli browser baidu tab close <targetId>
 
 规则如下：
 
-- `opencli browser <sessionname> open <url>` 和 `opencli browser <sessionname> tab new [url]` 都会返回 `targetId`。
-- `opencli browser <sessionname> tab list` 会打印当前已存在 tab 的 `targetId`。
+- `opencli browser <session> open <url>` 和 `opencli browser <session> tab new [url]` 都会返回 `targetId`。
+- `opencli browser <session> tab list` 会打印当前已存在 tab 的 `targetId`。
 - `--tab <targetId>` 会把单条 browser 命令路由到对应 tab。
 - `tab new` 只会新建 tab，不会改变默认浏览器目标。
 - `tab select <targetId>` 会把该 tab 设为后续未显式指定 target 的 `opencli browser ...` 命令默认目标。

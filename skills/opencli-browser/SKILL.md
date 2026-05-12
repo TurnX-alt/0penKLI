@@ -24,9 +24,9 @@ Until `doctor` is green, nothing else will work. Typical failures: Chrome not ru
 
 ## Session lifecycle
 
-- `opencli browser *` commands require a `<sessionname>` positional immediately after `browser`. Use the same session name for a multi-step flow; use a different name to isolate parallel browser work.
-- Owned browser sessions keep a tab lease alive between calls. Release it with `opencli browser <sessionname> close` or let the idle timeout expire.
-- `opencli browser <sessionname> bind` binds the Chrome tab you already have open to that session. Use this for logged-in pages, SSO flows, or pages you manually positioned before handing control to the agent.
+- `opencli browser *` commands require a `<session>` positional immediately after `browser`. Use the same session name for a multi-step flow; use a different name to isolate parallel browser work.
+- Owned browser sessions keep a tab lease alive between calls. Release it with `opencli browser <session> close` or let the idle timeout expire.
+- `opencli browser <session> bind` binds the Chrome tab you already have open to that session. Use this for logged-in pages, SSO flows, or pages you manually positioned before handing control to the agent.
 - `--window foreground|background` (or `OPENCLI_WINDOW=foreground|background`) chooses whether OpenCLI creates/focuses a foreground browser window or uses a background browser window for owned sessions.
 
 ### Bind Tab
@@ -39,7 +39,7 @@ opencli browser gmail network
 opencli browser gmail unbind
 ```
 
-Binding never owns the user window and never closes the user tab. It fails closed if the tab is closed or becomes non-debuggable. Re-run `opencli browser <sessionname> bind` when you switch to a different real tab.
+Binding never owns the user window and never closes the user tab. It fails closed if the tab is closed or becomes non-debuggable. Re-run `opencli browser <session> bind` when you switch to a different real tab.
 
 Navigation is allowed on bound sessions because the session now represents explicit agent ownership of that tab. Tab mutation (`tab new`, `tab select`, `tab close`) is still blocked for bound sessions. Use an owned session when you want OpenCLI to manage tab lifecycle.
 
@@ -210,8 +210,8 @@ Default output keeps JSON/XML/plain-text and JS-like API responses, then drops o
 | `browser tab close [targetId]` | Close by `page`. |
 | `browser back` | History back on the active tab. |
 | `browser close` | Release the current owned browser session when done. |
-| `browser <sessionname> bind` | Bind the current Chrome tab to the named browser session. |
-| `browser <sessionname> unbind` | Detach the named bound session without closing the user tab/window. |
+| `browser <session> bind` | Bind the current Chrome tab to the named browser session. |
+| `browser <session> unbind` | Detach the named bound session without closing the user tab/window. |
 
 ---
 

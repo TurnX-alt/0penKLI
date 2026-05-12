@@ -303,10 +303,19 @@ export function commanderNamespaceHelpData(
   const leaves = collectLeafCommands(namespaceRoot)
     .filter(command => command !== namespaceRoot)
     .sort((a, b) => commandPathFromRoot(namespaceRoot, a).join(' ').localeCompare(commandPathFromRoot(namespaceRoot, b).join(' ')));
+  // Respect commander's `.usage()` override (e.g. `<session> <command> [options]`
+  // on `browser`); fall back to the generic `<command> [args] [options]` form.
+  // Read the private `_usage` field directly because `.usage()` returns the
+  // auto-generated form if no override was set.
+  const commandPath = commanderPath(namespaceRoot).join(' ');
+  const usageOverride = (namespaceRoot as Command & { _usage?: string })._usage;
+  const usage = usageOverride
+    ? `${commandPath} ${usageOverride}`
+    : `${commandPath} <command> [args] [options]`;
   return {
     namespace: namespaceRoot.name(),
-    command: commanderPath(namespaceRoot).join(' '),
-    usage: `${commanderPath(namespaceRoot).join(' ')} <command> [args] [options]`,
+    command: commandPath,
+    usage,
     description: opts.description ?? namespaceRoot.description(),
     command_count: leaves.length,
     commands: leaves.map(command => compactCommanderCommand(namespaceRoot, command, opts)),
@@ -314,7 +323,7 @@ export function commanderNamespaceHelpData(
     ...(opts.globalCommand ? { global_options: compactCommanderOptions(opts.globalCommand.options) } : {}),
     structured_help: {
       formats: ['yaml', 'json'],
-      usage: `${commanderPath(namespaceRoot).join(' ')} --help -f yaml`,
+      usage: `${commandPath} --help -f yaml`,
     },
   };
 }

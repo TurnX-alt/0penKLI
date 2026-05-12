@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getBrowserSubcommandNames, rewriteBrowserArgv } from './cli-argv-preprocess.js';
 
 describe('rewriteBrowserArgv', () => {
-  it('rewrites `browser <sessionname> <subcommand>` into `browser --session <name> <subcommand>`', () => {
+  it('rewrites `browser <session> <subcommand>` into `browser --session <name> <subcommand>`', () => {
     expect(rewriteBrowserArgv(['browser', 'work', 'state'])).toEqual([
       'browser',
       '--session',
@@ -21,7 +21,7 @@ describe('rewriteBrowserArgv', () => {
     ]);
   });
 
-  it('rewrites `browser <sessionname> bind`', () => {
+  it('rewrites `browser <session> bind`', () => {
     expect(rewriteBrowserArgv(['browser', 'mercury', 'bind'])).toEqual([
       'browser',
       '--session',
@@ -30,7 +30,7 @@ describe('rewriteBrowserArgv', () => {
     ]);
   });
 
-  it('leaves argv alone when sessionname omitted and a subcommand follows', () => {
+  it('leaves argv alone when session omitted and a subcommand follows', () => {
     // Commander surfaces the required-flag error itself.
     expect(rewriteBrowserArgv(['browser', 'state'])).toEqual(['browser', 'state']);
     expect(rewriteBrowserArgv(['browser', 'bind'])).toEqual(['browser', 'bind']);
@@ -41,13 +41,14 @@ describe('rewriteBrowserArgv', () => {
     expect(rewriteBrowserArgv(['browser', '-h'])).toEqual(['browser', '-h']);
   });
 
-  it('leaves argv alone when the caller already used the internal --session flag', () => {
-    expect(rewriteBrowserArgv(['browser', '--session', 'foo', 'state'])).toEqual([
-      'browser',
-      '--session',
-      'foo',
-      'state',
-    ]);
+  it('refuses the retired `opencli browser --session foo ...` user form', () => {
+    // The flag form is no longer a public entrance. Tests calling
+    // program.parseAsync directly bypass the preprocessor, so internal
+    // callers still work; but the user-facing pipeline throws.
+    expect(() => rewriteBrowserArgv(['browser', '--session', 'foo', 'state']))
+      .toThrowError(/no longer a public option/i);
+    expect(() => rewriteBrowserArgv(['browser', '--session=foo', 'state']))
+      .toThrowError(/no longer a public option/i);
   });
 
   it('leaves argv alone when `browser` is not present', () => {

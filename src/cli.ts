@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Command, InvalidArgumentError } from 'commander';
+import { Command, InvalidArgumentError, Option } from 'commander';
 import { styleText } from 'node:util';
 import { findPackageRoot, getBuiltEntryCandidates } from './package-paths.js';
 import { type CliCommand, fullName, getRegistry, strategyLabel } from './registry.js';
@@ -441,12 +441,12 @@ function getCommandOption(command: Command | undefined, option: string): unknown
 }
 
 function getBrowserSession(command?: Command): string {
-  // The CLI surface is `opencli browser <sessionname> <subcommand>`. main.ts rewrites
-  // argv to insert `--session <sessionname>` before commander parses it; this helper
+  // The CLI surface is `opencli browser <session> <subcommand>`. main.ts rewrites
+  // argv to insert `--session <name>` before commander parses it; this helper
   // reads back the rewritten flag.
   const raw = getCommandOption(command, 'session');
   if (typeof raw === 'string' && raw.trim()) return raw.trim();
-  throw new Error('<sessionname> is a required positional argument: opencli browser <sessionname> <command>');
+  throw new Error('<session> is a required positional argument: opencli browser <session> <command>');
 }
 
 function getBrowserContextId(command?: Command): string | undefined {
@@ -689,12 +689,15 @@ export function createProgram(BUILTIN_CLIS: string, USER_CLIS: string): Command 
 
   const browser = program
     .command('browser')
-    .requiredOption('--session <name>', 'Browser session name (required, normally passed as the <sessionname> positional)')
+    // --session is an internal hidden option used by the daemon protocol and direct
+    // program.parseAsync callers (tests). User-facing surface is the <session>
+    // positional; main.ts argv preprocessor rewrites positional -> --session.
+    .addOption(new Option('--session <name>', 'Internal — set automatically from the <session> positional').hideHelp())
     .option('--window <mode>', 'Browser window mode: foreground or background')
     .description('Browser control — navigate, click, type, extract, wait (no LLM needed)')
-    .usage('<sessionname> <command> [options]')
+    .usage('<session> <command> [options]')
     .addHelpText('after', `
-Sessionname is a required positional that identifies the browser session every subcommand operates on.
+<session> is a required positional: pass the name of the browser session every subcommand should operate on. Reuse the same name across calls to keep the tab/state alive; pick a different name to isolate parallel browser work.
 
 Examples:
   $ opencli browser work open https://x.com
@@ -825,7 +828,7 @@ Examples:
   }
 
   browser.command('bind')
-    .description('Bind the current Chrome tab/window to the browser session named by <sessionname>')
+    .description('Bind the current Chrome tab/window to the browser session named by <session>')
     .action(async (optsOrCommand, maybeCommand?: Command) => {
       const command = optsOrCommand instanceof Command ? optsOrCommand : maybeCommand;
       const session = getBrowserSession(command);
@@ -854,7 +857,7 @@ Examples:
     });
 
   browser.command('unbind')
-    .description('Detach the bound browser session named by <sessionname> without closing the user tab/window')
+    .description('Detach the bound browser session named by <session> without closing the user tab/window')
     .action(async (optsOrCommand, maybeCommand?: Command) => {
       const command = optsOrCommand instanceof Command ? optsOrCommand : maybeCommand;
       const session = getBrowserSession(command);

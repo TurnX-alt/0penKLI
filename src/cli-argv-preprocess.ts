@@ -1,6 +1,6 @@
 /**
- * argv preprocessing: rewrite `opencli browser <sessionname> <subcommand> ...`
- * into `opencli browser --session <sessionname> <subcommand> ...` so commander
+ * argv preprocessing: rewrite `opencli browser <session> <subcommand> ...`
+ * into `opencli browser --session <session> <subcommand> ...` so commander
  * (which can't combine a parent positional with subcommand dispatch) can parse it.
  *
  * The user-facing form is positional; the internal form uses --session. Help text
@@ -8,7 +8,7 @@
  */
 
 /**
- * Browser subcommand names. If `<sessionname>` would collide with one of these,
+ * Browser subcommand names. If `<session>` would collide with one of these,
  * we treat it as a missing-positional error and leave argv alone so commander
  * reports a usable diagnostic.
  *
@@ -55,7 +55,7 @@ const BROWSER_SUBCOMMAND_NAMES: ReadonlySet<string> = new Set([
  * Root program options that consume the following token as their value. Used by
  * the preprocessor to identify which token is the root command name (so e.g.
  * `opencli --profile work browser foo state` is recognised as the `browser`
- * command with `<sessionname>=foo`, not the value of --profile).
+ * command with `<session>=foo`, not the value of --profile).
  *
  * Keep in sync with `program.option(...)` calls in cli.ts.
  */
@@ -70,7 +70,7 @@ export function getBrowserSubcommandNames(): ReadonlySet<string> {
 }
 
 /**
- * Rewrite `argv` to convert the positional `<sessionname>` after `browser`
+ * Rewrite `argv` to convert the positional `<session>` after `browser`
  * into the internal `--session <name>` flag form.
  *
  * Only acts when `browser` is the root command (i.e. the first non-flag token
@@ -81,7 +81,7 @@ export function getBrowserSubcommandNames(): ReadonlySet<string> {
  * Leaves argv unchanged when:
  *   - root command is not `browser`
  *   - the token after `browser` is a flag (e.g. `--help`)
- *   - the token after `browser` is a known subcommand name (sessionname was
+ *   - the token after `browser` is a known subcommand name (session was
  *     omitted; commander will surface its own required-flag error)
  */
 export function rewriteBrowserArgv(argv: readonly string[]): string[] {
@@ -106,9 +106,27 @@ export function rewriteBrowserArgv(argv: readonly string[]): string[] {
   const sessionIdx = i + 1;
   const next = result[sessionIdx];
   if (next === undefined) return result;
+  // The retired `--session` flag must not be a working public entrance.
+  if (next === '--session' || next === '--session=' || next.startsWith('--session=')) {
+    throw new BrowserSessionArgvError(
+      'The `--session` flag is no longer a public option. Use the positional form: opencli browser <session> <command>',
+    );
+  }
   if (next.startsWith('-')) return result;
   if (BROWSER_SUBCOMMAND_NAMES.has(next)) return result;
   // Splice in --session <name> in place of the positional.
   result.splice(sessionIdx, 1, '--session', next);
   return result;
+}
+
+/**
+ * Thrown by the preprocessor when user argv uses a retired/old form that we
+ * intentionally refuse to accept. main.ts catches this and exits with a
+ * usage error so it does not bubble up as an internal stacktrace.
+ */
+export class BrowserSessionArgvError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BrowserSessionArgvError';
+  }
 }
