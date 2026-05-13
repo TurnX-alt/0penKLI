@@ -55,7 +55,7 @@
   install:
     default: "npm install -g vercel"
 
-- name: tg-cli
+- name: tg
   binary: tg
   description: "Telegram CLI — local-first sync, search, export via MTProto for AI agents"
   homepage: "https://github.com/jackwener/tg-cli"
@@ -63,7 +63,7 @@
   install:
     default: "uv tool install kabi-tg-cli"
 
-- name: discord-cli
+- name: discord
   binary: discord
   description: "Discord CLI — local-first sync, search, export via SQLite for AI agents"
   homepage: "https://github.com/jackwener/discord-cli"
@@ -71,7 +71,7 @@
   install:
     default: "uv tool install kabi-discord-cli"
 
-- name: wx-cli
+- name: wx
   binary: wx
   description: "WeChat local data CLI — sessions, messages, search, contacts, export for AI agents"
   homepage: "https://github.com/jackwener/wx-cli"
