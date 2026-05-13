@@ -1,29 +1,48 @@
 # Changelog
 
-## Unreleased
+## [1.7.19](https://github.com/jackwener/opencli/compare/v1.7.18...v1.7.19) (2026-05-14)
 
-### Bug Fixes
-
-* **browser** — `page.evaluate()` / `evaluateInFrame()` now return the user JavaScript value directly. Browser Bridge `exec` previously routed through a shared `pageScopedResult` helper that spread / wrapped the lease's `session` into the result `data`, contaminating arbitrary user returns: array / primitive returns came back as `{ session, data }` envelopes, and plain-object returns had an extra `session` key injected (overwriting any user `session` field). `google search` and `xiaohongshu search` were the visible repro — Chrome rendered results correctly but adapters extracted an empty array. Fixed in extension 1.0.14 by reverting `pageScopedResult` to its pre-1461 form (`{ id, ok, data, page }`); no client-side unwrap is needed.
-* **twitter** — raise fixed cursor-pagination caps in bookmarks / likes / tweets / timeline / bookmark-folder / list-tweets / search / following. The old `i < 5` / `i < 10` literals and following's `Math.ceil(limit / 50) + 2` formula imposed hidden result ceilings below `--limit`; the loop now treats the page count as a high runaway guard while `--limit` and cursor exhaustion control normal pagination.
-* **google/search** — wait for `#rso a h3` before extracting, falling back to the existing fixed wait. On Chrome 148 + Linux Wayland the DOM can settle before SERP anchors are populated, making extraction return empty even with the envelope bug fixed.
-* **xiaohongshu/search** — extract initially visible cards before scrolling, then merge post-scroll rows by URL. Xiaohongshu's virtualized masonry layout can evict the initial cards from the DOM after scroll, so the previous always-scroll-then-extract flow could lose the top results.
-
-### Features
-
-* **browser** — add `page.evaluate(fn, ...args)` for type-safe browser-context evaluation with JSON-serialized arguments. String evaluation remains supported, but new adapter code should use function form to avoid implicit `wrapForEval` auto-IIFE magic.
+Major hotfix + simplification batch. Extension bumped to 1.0.14. Node floor lowered to v20 so the long tail of Node v20–v21.6 users no longer crashes at module load. `opencli browser` user surface replaces required-flag `--session <name>` with a `<session>` positional. `page.evaluate(fn, ...args)` adds a type-safe alternative to the implicit auto-IIFE string form. Twitter cursor pagination no longer silently caps at ~500 items.
 
 ### ⚠ BREAKING CHANGES
 
-* **browser** — replace the `--session <name>` flag with a `<session>` positional argument that immediately follows `browser`. `opencli browser work click 12` instead of `opencli browser --session work click 12`; `opencli browser work bind` instead of `opencli browser bind --session work`. Required-flag semantics are now encoded structurally as a positional, matching the Docker/git convention for required operation-target identifiers. The internal `--session` flag is preserved for the daemon protocol and for direct `program.parseAsync` callers but is no longer part of the user-facing surface.
-* **env** — remove `OPENCLI_KEEP_TAB`. The flag was a debugging shortcut, not a config dimension: `--keep-tab true|false` on the command line is the single source of truth, and adapter `siteSession: 'persistent'` already pins persistent site tabs as a hard constraint. Removing the env eliminates a globally-leaking process state that overrode every browser command in the shell.
-* **extension** — remove the internal `surface\\0session` command-session backdoor. Browser Bridge commands now route only through structured `session` + `surface` fields; lease-key strings remain an extension-internal registry detail.
+* **browser** — replace the `--session <name>` flag with a `<session>` positional argument that immediately follows `browser`. `opencli browser work click 12` instead of `opencli browser --session work click 12`; `opencli browser work bind` instead of `opencli browser bind --session work`. Required-flag semantics are now encoded structurally as a positional, matching the Docker/git convention for required operation-target identifiers. The internal `--session` flag is preserved for the daemon protocol and for direct `program.parseAsync` callers but is no longer part of the user-facing surface. ([#1505](https://github.com/jackwener/opencli/issues/1505))
+* **env** — remove `OPENCLI_KEEP_TAB`. The flag was a debugging shortcut, not a config dimension: `--keep-tab true|false` on the command line is the single source of truth, and adapter `siteSession: 'persistent'` already pins persistent site tabs as a hard constraint. Removing the env eliminates a globally-leaking process state that overrode every browser command in the shell. ([#1509](https://github.com/jackwener/opencli/issues/1509))
+* **extension** — remove the internal `surface\\0session` command-session backdoor. Browser Bridge commands now route only through structured `session` + `surface` fields; lease-key strings remain an extension-internal registry detail. ([#1510](https://github.com/jackwener/opencli/issues/1510))
+
+### Features
+
+* **browser** — add `page.evaluate(fn, ...args)` for type-safe browser-context evaluation with JSON-serialized arguments. String evaluation remains supported, but new adapter code should use function form to avoid implicit `wrapForEval` auto-IIFE magic. ([#1508](https://github.com/jackwener/opencli/issues/1508))
+* **twitter** — default `tweets` command to the logged-in user when `user` is omitted, and fix the sibling envelope-unwrap silent bug. ([#1531](https://github.com/jackwener/opencli/issues/1531))
+* **zhihu** — add `answer-detail` to fetch a single answer's full content. ([#1528](https://github.com/jackwener/opencli/issues/1528))
+* **zhihu** — paginate question answers and recommendations. ([#1517](https://github.com/jackwener/opencli/issues/1517))
+* **reddit/read** — `--expand-more` via `/api/morechildren` + 7-kind typed errors. ([#1492](https://github.com/jackwener/opencli/issues/1492))
+* **reddit** — add `whoami`, `home`, `subreddit-info` read commands. ([#1491](https://github.com/jackwener/opencli/issues/1491))
+* **ctrip** — add `hotel-search` + flight browser-mode commands. ([#1489](https://github.com/jackwener/opencli/issues/1489))
+
+### Bug Fixes
+
+* **browser** — `page.evaluate()` / `evaluateInFrame()` now return the user JavaScript value directly. Browser Bridge `exec` previously routed through a shared `pageScopedResult` helper that spread / wrapped the lease's `session` into the result `data`, contaminating arbitrary user returns: array / primitive returns came back as `{ session, data }` envelopes, and plain-object returns had an extra `session` key injected (overwriting any user `session` field). `google search` and `xiaohongshu search` were the visible repro — Chrome rendered results correctly but adapters extracted an empty array. Fixed in extension 1.0.14 by reverting `pageScopedResult` to its pre-1461 form (`{ id, ok, data, page }`); no client-side unwrap is needed. ([#1518](https://github.com/jackwener/opencli/issues/1518))
+* **twitter** — raise fixed cursor-pagination caps in `bookmarks` / `likes` / `tweets` / `timeline` / `bookmark-folder` / `list-tweets` / `search` / `following`. The old `i < 5` / `i < 10` literals and following's `Math.ceil(limit / 50) + 2` formula imposed hidden result ceilings below `--limit`; the loop now treats the page count as a high runaway guard while `--limit` and cursor exhaustion control normal pagination. ([#1532](https://github.com/jackwener/opencli/issues/1532))
+* **twitter** — repair `list-add` / `list-tweets` / `lists` / `following` after 2026-05 site changes. ([#1503](https://github.com/jackwener/opencli/issues/1503))
+* **twitter** — repair `search` and `tweets` readback. ([#1512](https://github.com/jackwener/opencli/issues/1512))
+* **twitter** — make reply submission robust. ([#1511](https://github.com/jackwener/opencli/issues/1511))
+* **google/search** — wait for `#rso a h3` before extracting, falling back to the existing fixed wait. On Chrome 148 + Linux Wayland the DOM can settle before SERP anchors are populated, making extraction return empty even with the envelope bug fixed. ([#1518](https://github.com/jackwener/opencli/issues/1518))
+* **google/search** — wrap evaluate return value in object to fix serialization. ([#1523](https://github.com/jackwener/opencli/issues/1523))
+* **google-scholar/search** — wrap evaluate return to fix serialization. ([#1525](https://github.com/jackwener/opencli/issues/1525))
+* **xiaohongshu/search** — extract initially visible cards before scrolling, then merge post-scroll rows by URL. Xiaohongshu's virtualized masonry layout can evict the initial cards from the DOM after scroll, so the previous always-scroll-then-extract flow could lose the top results. ([#1518](https://github.com/jackwener/opencli/issues/1518))
+* **xiaohongshu** — `parseLikes` handles `2.1w` / `1.5万` / `1.2k` shortforms. ([#1504](https://github.com/jackwener/opencli/issues/1504))
+* **xiaohongshu+rednote/search** — fall back to href-based note cards when `section.note-item` class is dropped. ([#1507](https://github.com/jackwener/opencli/issues/1507))
+* **xueqiu** — `kline` / `earnings-date` format dates in Asia/Shanghai instead of UTC. ([#1498](https://github.com/jackwener/opencli/issues/1498))
+* **download** — clamp progress percentages. ([#1520](https://github.com/jackwener/opencli/issues/1520))
 
 ### Internal
 
-* **runtime** — lower the Node floor to `>=20.0.0`. Three coupled changes: drop all `util.styleText()` usage (added in Node v21.7.0 / v20.12.0; previously crashed v21.0–v21.6 at module load), downgrade `undici` from `^8.0.2` (engines `>=22.19.0`) to `^6.25.0` (engines `>=18.17`, retains `Agent` / `EnvHttpProxyAgent` / `fetch`), and lower `MIN_SUPPORTED_NODE_MAJOR` from 21 to 20 so the startup guard matches the declared `engines.node`. Smoke-tested on v20.0.0 / v21.2.0 / v22.22.2. The colored output (`[OK]` / `[WARN]` / `[FAIL]` / `ℹ` / `⚠` / `✖`) keeps its semantic markers; ANSI colors were redundant for the primarily agent-facing CLI.
-* **extension 1.0.14** — `pageScopedResult` no longer injects `session` into `data`. The field had no consumers and contaminated `exec` results with arbitrary user-JS shapes; routing-relevant identity is already exposed via `Result.page`.
-* **extension 1.0.13** — remove the internal command-session lease-key backdoor.
+* **runtime** — lower the Node floor to `>=20.0.0`. Three coupled changes: drop all `util.styleText()` usage (added in Node v21.7.0 / v20.12.0; previously crashed v21.0–v21.6 at module load), downgrade `undici` from `^8.0.2` (engines `>=22.19.0`) to `^6.25.0` (engines `>=18.17`, retains `Agent` / `EnvHttpProxyAgent` / `fetch`), and lower `MIN_SUPPORTED_NODE_MAJOR` from 21 to 20 so the startup guard matches the declared `engines.node`. Smoke-tested on v20.0.0 / v21.2.0 / v22.22.2. The semantic markers (`[OK]` / `[WARN]` / `[FAIL]` / `ℹ` / `⚠` / `✖`) keep their meaning; ANSI colors were redundant for the primarily agent-facing CLI. ([#1524](https://github.com/jackwener/opencli/issues/1524))
+* **extension 1.0.14** — `pageScopedResult` no longer injects `session` into `data`. The field had no consumers and contaminated `exec` results with arbitrary user-JS shapes; routing-relevant identity is already exposed via `Result.page`. ([#1518](https://github.com/jackwener/opencli/issues/1518))
+* **extension 1.0.13** — remove the internal command-session lease-key backdoor. ([#1510](https://github.com/jackwener/opencli/issues/1510))
+* **ci** — drop `e2e-headed` and `adapter-test` from `pull_request` triggers (kept on `push` to main / nightly / `workflow_dispatch`). PR-time CI now targets ~2 min wall-time. ([#1521](https://github.com/jackwener/opencli/issues/1521), [#1522](https://github.com/jackwener/opencli/issues/1522))
+* **scripts** — auto-refresh `dist/` before `build-manifest`. ([#1490](https://github.com/jackwener/opencli/issues/1490))
 
 ## [1.7.18](https://github.com/jackwener/opencli/compare/v1.7.17...v1.7.18) (2026-05-12)
 
