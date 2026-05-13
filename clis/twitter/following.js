@@ -1,6 +1,6 @@
 import { cli, Strategy } from '@jackwener/opencli/registry';
 import { ArgumentError, AuthRequiredError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
-import { resolveTwitterQueryId, sanitizeQueryId, unwrapBrowserResult } from './shared.js';
+import { normalizeTwitterScreenName, resolveTwitterQueryId, sanitizeQueryId, unwrapBrowserResult } from './shared.js';
 import { TWITTER_BEARER_TOKEN } from './utils.js';
 
 const FOLLOWING_QUERY_ID = 'zx6e-TLzRkeDO_a7p4b3JQ';  // Following fallback
@@ -128,7 +128,7 @@ function parseFollowing(data) {
 }
 
 function normalizeScreenName(value) {
-    return String(value || '').trim().replace(/^\/+/, '').replace(/^@+/, '');
+    return normalizeTwitterScreenName(value);
 }
 
 cli({
@@ -156,7 +156,11 @@ cli({
         if (!Number.isInteger(limit) || limit <= 0) {
             throw new ArgumentError('twitter following --limit must be a positive integer', 'Example: opencli twitter following @elonmusk --limit 200');
         }
-        let targetUser = normalizeScreenName(kwargs.user);
+        const rawUser = String(kwargs.user ?? '').trim();
+        let targetUser = normalizeScreenName(rawUser);
+        if (rawUser && !targetUser) {
+            throw new ArgumentError('twitter following user must be a valid Twitter/X handle', 'Example: opencli twitter following @elonmusk --limit 200');
+        }
 
         const cookies = await page.getCookies({ url: 'https://x.com' });
         const ct0 = cookies.find((c) => c.name === 'ct0')?.value || null;
@@ -180,7 +184,9 @@ cli({
       }`));
             if (!href || typeof href !== 'string')
                 throw new AuthRequiredError('x.com', 'Could not detect logged-in user. Are you logged in?');
-            targetUser = normalizeScreenName(href.replace(/^\//, ''));
+            targetUser = normalizeScreenName(href);
+            if (!targetUser)
+                throw new AuthRequiredError('x.com', 'Could not detect logged-in user. Are you logged in?');
         }
         if (!targetUser) {
             throw new ArgumentError('twitter following user cannot be empty', 'Example: opencli twitter following @elonmusk --limit 200');

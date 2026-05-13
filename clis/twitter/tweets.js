@@ -1,6 +1,7 @@
 import { cli, Strategy } from '@jackwener/opencli/registry';
-import { AuthRequiredError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
+import { ArgumentError, AuthRequiredError, CommandExecutionError, EmptyResultError } from '@jackwener/opencli/errors';
 import { resolveTwitterOperationMetadata, sanitizeQueryId, extractMedia, normalizeTwitterGraphqlPayload, unwrapBrowserResult } from './shared.js';
+import { normalizeTwitterScreenName } from './shared.js';
 import { TWITTER_BEARER_TOKEN, applyTopByEngagement } from './utils.js';
 
 const USER_TWEETS_QUERY_ID = 'lrMzG9qPQHpqJdP3AbM-bQ';
@@ -228,7 +229,11 @@ cli({
     columns: ['id', 'author', 'created_at', 'is_retweet', 'text', 'likes', 'retweets', 'replies', 'views', 'url', 'has_media', 'media_urls'],
     func: async (page, kwargs) => {
         const limit = Math.max(1, Math.min(200, kwargs.limit || 20));
-        let username = String(kwargs.username || '').replace(/^@/, '').trim();
+        const rawUsername = String(kwargs.username ?? '').trim();
+        let username = normalizeTwitterScreenName(rawUsername);
+        if (rawUsername && !username) {
+            throw new ArgumentError('twitter tweets username must be a valid Twitter/X handle', 'Example: opencli twitter tweets @jack --limit 20');
+        }
         // When no username is given, detect the logged-in user (own tweets).
         // Mirrors the self-detection pattern used by twitter/profile and
         // twitter/likes so agents can pull own-account data without having
@@ -244,7 +249,10 @@ cli({
       }`));
             if (!href || typeof href !== 'string')
                 throw new AuthRequiredError('x.com', 'Could not detect logged-in user. Are you logged in?');
-            username = href.replace(/^\//, '').replace(/^@/, '');
+            username = normalizeTwitterScreenName(href);
+            if (!username) {
+                throw new AuthRequiredError('x.com', 'Could not detect logged-in user. Are you logged in?');
+            }
         }
 
         const cookies = await page.getCookies({ url: 'https://x.com' });

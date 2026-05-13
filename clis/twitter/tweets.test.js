@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getRegistry } from '@jackwener/opencli/registry';
-import { AuthRequiredError } from '@jackwener/opencli/errors';
+import { ArgumentError, AuthRequiredError } from '@jackwener/opencli/errors';
 import { __test__ } from './tweets.js';
 
 describe('twitter tweets helpers', () => {
@@ -108,6 +108,39 @@ describe('twitter tweets helpers', () => {
             }),
         };
         await expect(cmd.func(page, {})).rejects.toBeInstanceOf(AuthRequiredError);
+    });
+
+    it('rejects invalid explicit username before navigation', async () => {
+        const cmd = getRegistry().get('twitter/tweets');
+        const page = {
+            goto: vi.fn().mockResolvedValue(undefined),
+            wait: vi.fn().mockResolvedValue(undefined),
+            getCookies: vi.fn(async () => [{ name: 'ct0', value: 'token' }]),
+            evaluate: vi.fn(),
+        };
+
+        await expect(cmd.func(page, { username: 'viewer/extra' })).rejects.toBeInstanceOf(ArgumentError);
+        expect(page.goto).not.toHaveBeenCalled();
+        expect(page.getCookies).not.toHaveBeenCalled();
+        expect(page.evaluate).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-profile AppTabBar hrefs instead of querying route names as users', async () => {
+        const cmd = getRegistry().get('twitter/tweets');
+        const page = {
+            goto: vi.fn().mockResolvedValue(undefined),
+            wait: vi.fn().mockResolvedValue(undefined),
+            getCookies: vi.fn(async () => [{ name: 'ct0', value: 'token' }]),
+            evaluate: vi.fn(async (script) => {
+                const text = typeof script === 'function' ? script.toString() : String(script);
+                if (text.includes('AppTabBar_Profile_Link')) return '/home';
+                throw new Error(`Unexpected evaluate: ${text.slice(0, 80)}`);
+            }),
+        };
+
+        await expect(cmd.func(page, {})).rejects.toBeInstanceOf(AuthRequiredError);
+        expect(page.goto).toHaveBeenCalledWith('https://x.com/home');
+        expect(page.evaluate).toHaveBeenCalledTimes(1);
     });
 
     it('falls back when queryId contains unsafe characters', () => {

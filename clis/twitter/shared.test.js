@@ -3,7 +3,7 @@ import { JSDOM } from 'jsdom';
 import { __test__ } from './shared.js';
 import { ArgumentError } from '@jackwener/opencli/errors';
 
-const { extractMedia, parseTweetUrl, buildTwitterArticleScopeSource, unwrapBrowserResult, normalizeTwitterGraphqlPayload, sanitizeTwitterOperationMetadata } = __test__;
+const { extractMedia, parseTweetUrl, buildTwitterArticleScopeSource, unwrapBrowserResult, normalizeTwitterGraphqlPayload, normalizeTwitterScreenName, sanitizeTwitterOperationMetadata } = __test__;
 
 describe('twitter browser result helpers', () => {
     it('unwraps Browser Bridge exec envelopes', () => {
@@ -72,6 +72,37 @@ describe('twitter browser result helpers', () => {
             data: { search_by_raw_query: { search_timeline: {} } },
         });
         expect(normalizeTwitterGraphqlPayload({ data: { user: {} } })).toEqual({ data: { user: {} } });
+    });
+});
+
+describe('twitter normalizeTwitterScreenName', () => {
+    it('accepts exact handles and exact Twitter/X profile URLs', () => {
+        expect(normalizeTwitterScreenName('@viewer')).toBe('viewer');
+        expect(normalizeTwitterScreenName('/viewer')).toBe('viewer');
+        expect(normalizeTwitterScreenName('https://x.com/viewer')).toBe('viewer');
+        expect(normalizeTwitterScreenName('https://twitter.com/viewer?lang=en')).toBe('viewer');
+        expect(normalizeTwitterScreenName('https://mobile.twitter.com/viewer')).toBe('viewer');
+    });
+
+    it('rejects route collisions, malformed handles, and non-exact profile URLs', () => {
+        const invalid = [
+            '/home',
+            '/viewer/extra',
+            'viewer/extra',
+            'viewer?tab=posts',
+            'https://x.com/home',
+            'https://x.com/viewer/status/1',
+            'http://x.com/viewer',
+            'https://evil.com/viewer',
+            'https://x.com.evil.com/viewer',
+            'https://x.com:444/viewer',
+            'https://user:pass@x.com/viewer',
+            'bad-handle',
+            'abcdefghijklmnop',
+        ];
+        for (const value of invalid) {
+            expect(normalizeTwitterScreenName(value)).toBe('');
+        }
     });
 });
 

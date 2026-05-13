@@ -1,8 +1,28 @@
 import { ArgumentError } from '@jackwener/opencli/errors';
 
 const QUERY_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const SCREEN_NAME_PATTERN = /^[A-Za-z0-9_]{1,15}$/;
 const TWEET_PATH_PATTERN = /^\/(?:[^/]+|i)\/status\/(\d+)\/?$/;
 const TWEET_HOSTS = new Set(['x.com', 'twitter.com']);
+const SCREEN_NAME_HOSTS = new Set(['x.com', 'twitter.com', 'mobile.twitter.com']);
+const RESERVED_SCREEN_NAME_PATHS = new Set([
+    'compose',
+    'explore',
+    'help',
+    'home',
+    'i',
+    'intent',
+    'jobs',
+    'login',
+    'logout',
+    'messages',
+    'notifications',
+    'privacy',
+    'search',
+    'settings',
+    'signup',
+    'tos',
+]);
 
 function isTwitterHost(hostname) {
     return TWEET_HOSTS.has(hostname)
@@ -80,6 +100,33 @@ export function buildTwitterArticleScopeSource(tweetId) {
 
 export function sanitizeQueryId(resolved, fallbackId) {
     return typeof resolved === 'string' && QUERY_ID_PATTERN.test(resolved) ? resolved : fallbackId;
+}
+
+export function normalizeTwitterScreenName(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    let candidate = '';
+    try {
+        const url = raw.startsWith('/') ? new URL(raw, 'https://x.com') : new URL(raw);
+        if (
+            url.protocol !== 'https:' ||
+            url.username ||
+            url.password ||
+            url.port ||
+            !SCREEN_NAME_HOSTS.has(url.hostname)
+        ) {
+            return '';
+        }
+        const segments = url.pathname.split('/').filter(Boolean);
+        if (segments.length !== 1) return '';
+        candidate = segments[0];
+    } catch {
+        if (raw.includes('/') || raw.includes('?') || raw.includes('#')) return '';
+        candidate = raw.replace(/^@+/, '');
+    }
+    if (!SCREEN_NAME_PATTERN.test(candidate)) return '';
+    if (RESERVED_SCREEN_NAME_PATHS.has(candidate.toLowerCase())) return '';
+    return candidate;
 }
 
 function keysToFlags(keys) {
@@ -246,6 +293,7 @@ export const __test__ = {
     sanitizeTwitterOperationMetadata,
     unwrapBrowserResult,
     normalizeTwitterGraphqlPayload,
+    normalizeTwitterScreenName,
     extractMedia,
     parseTweetUrl,
     buildTwitterArticleScopeSource,

@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { getRegistry } from '@jackwener/opencli/registry';
+import { ArgumentError, AuthRequiredError } from '@jackwener/opencli/errors';
 import { __test__ } from './likes.js';
 describe('twitter likes helpers', () => {
     it('falls back when queryId contains unsafe characters', () => {
@@ -81,5 +83,39 @@ describe('twitter likes helpers', () => {
             created_at: 'now',
             url: 'https://x.com/alice/status/1',
         });
+    });
+});
+
+describe('twitter likes command', () => {
+    it('rejects invalid explicit username before cookies or navigation', async () => {
+        const command = getRegistry().get('twitter/likes');
+        const page = {
+            goto: vi.fn(),
+            wait: vi.fn(),
+            getCookies: vi.fn(),
+            evaluate: vi.fn(),
+        };
+
+        await expect(command.func(page, { username: 'viewer/extra', limit: 10 })).rejects.toBeInstanceOf(ArgumentError);
+        expect(page.getCookies).not.toHaveBeenCalled();
+        expect(page.goto).not.toHaveBeenCalled();
+        expect(page.evaluate).not.toHaveBeenCalled();
+    });
+
+    it('rejects route-like AppTabBar hrefs as AuthRequiredError', async () => {
+        const command = getRegistry().get('twitter/likes');
+        const page = {
+            goto: vi.fn().mockResolvedValue(undefined),
+            wait: vi.fn().mockResolvedValue(undefined),
+            getCookies: vi.fn(async () => [{ name: 'ct0', value: 'token' }]),
+            evaluate: vi.fn(async (script) => {
+                if (String(script).includes('AppTabBar_Profile_Link')) return '/home';
+                throw new Error(`Unexpected evaluate: ${String(script).slice(0, 80)}`);
+            }),
+        };
+
+        await expect(command.func(page, { limit: 10 })).rejects.toBeInstanceOf(AuthRequiredError);
+        expect(page.goto).toHaveBeenCalledWith('https://x.com/home');
+        expect(page.evaluate).toHaveBeenCalledTimes(1);
     });
 });

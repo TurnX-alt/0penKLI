@@ -157,6 +157,8 @@ describe('twitter following helpers', () => {
         expect(__test__.normalizeScreenName('@elonmusk')).toBe('elonmusk');
         expect(__test__.normalizeScreenName('/elonmusk')).toBe('elonmusk');
         expect(__test__.normalizeScreenName('  @@alice  ')).toBe('alice');
+        expect(__test__.normalizeScreenName('/home')).toBe('');
+        expect(__test__.normalizeScreenName('/elonmusk/extra')).toBe('');
     });
 });
 
@@ -251,6 +253,29 @@ describe('twitter following command', () => {
 
         await expect(command.func(page, { user: 'elonmusk', limit: 0 })).rejects.toBeInstanceOf(ArgumentError);
         expect(page.goto).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid explicit users before cookies or navigation', async () => {
+        const command = getRegistry().get('twitter/following');
+        const page = createFollowingPage([]);
+
+        await expect(command.func(page, { user: 'elonmusk/extra', limit: 10 })).rejects.toBeInstanceOf(ArgumentError);
+        expect(page.getCookies).not.toHaveBeenCalled();
+        expect(page.goto).not.toHaveBeenCalled();
+        expect(page.evaluate).not.toHaveBeenCalled();
+    });
+
+    it('rejects route-like AppTabBar hrefs as AuthRequiredError', async () => {
+        const command = getRegistry().get('twitter/following');
+        const page = createFollowingPage([]);
+        page.evaluate.mockImplementation(async (script, ...args) => {
+            const haystack = [typeof script === 'function' ? script.toString() : String(script), ...args.map((arg) => String(arg))].join('\n');
+            if (haystack.includes('AppTabBar_Profile_Link')) return '/home';
+            throw new Error(`Unexpected evaluate: ${haystack.slice(0, 80)}`);
+        });
+
+        await expect(command.func(page, { limit: 10 })).rejects.toBeInstanceOf(AuthRequiredError);
+        expect(page.goto).toHaveBeenCalledWith('https://x.com/home');
     });
 
     it('maps first-page auth failures to AuthRequiredError', async () => {
