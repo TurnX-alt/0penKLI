@@ -20,6 +20,7 @@
 
 ### Internal
 
+* **logger/output/doctor/tui/cli/update-check/daemon/download** — drop all `util.styleText()` usage and the implicit Node `>=21.7.0 / >=20.12.0` requirement. OpenCLI is primarily an agent-facing CLI; terminal colors are noise to consumers and the `[OK]` / `[WARN]` / `[FAIL]` / `ℹ` / `⚠` / `✖` markers already carry the semantic information that colors only repeated. `engines.node` is now `>=20.0.0`, and `node v21.0.0`–`v21.6.x` users no longer hit `SyntaxError: ... styleText` at startup.
 * **extension 1.0.14** — `pageScopedResult` no longer injects `session` into `data`. The field had no consumers and contaminated `exec` results with arbitrary user-JS shapes; routing-relevant identity is already exposed via `Result.page`.
 * **extension 1.0.13** — remove the internal command-session lease-key backdoor.
 
