@@ -3398,6 +3398,16 @@ export function resolveBrowserVerifyInvocation(opts: {
   const readFile = opts.readFile ?? ((filePath: string) => fs.readFileSync(filePath, 'utf-8'));
   const projectRoot = opts.projectRoot ?? findPackageRoot(CLI_FILE, fileExists);
 
+  // On Windows with shell:true, validate the cwd path is safe for cmd.exe
+  if (platform === 'win32') {
+    const dangerous = /[&|;()$%<>`"]/;
+    if (dangerous.test(projectRoot)) {
+      throw new Error(
+        `Unsafe project path for Windows: "${projectRoot}" contains special characters that could enable command injection via cmd.exe shell. Please move the project to a directory without characters like & | ; ( ) $ % < > \` "`,
+      );
+    }
+  }
+
   for (const builtEntry of getBuiltEntryCandidates(projectRoot, readFile)) {
     if (fileExists(builtEntry)) {
       return {

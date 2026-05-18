@@ -27,6 +27,19 @@ import {
 const isWindows = process.platform === 'win32';
 const LOCAL_PLUGIN_SOURCE_PREFIX = 'local:';
 
+// Shell metacharacters that can cause command injection on Windows cmd.exe
+const WINDOWS_SHELL_DANGEROUS = /[&|;()$%<>`"]/;
+
+function validateWindowsShellPath(p: string, context: string): void {
+  if (!isWindows) return;
+  if (WINDOWS_SHELL_DANGEROUS.test(p)) {
+    throw new PluginError(
+      `Unsafe path for Windows shell: ${context} contains special characters that could enable command injection`,
+      'Rename the directory or file to avoid special characters such as & | ; ( ) $ % < > ` "',
+    );
+  }
+}
+
 /** Get home directory, respecting HOME environment variable for test isolation. */
 function getHomeDir(): string {
   return process.env.HOME || process.env.USERPROFILE || os.homedir();
@@ -224,7 +237,7 @@ function createSiblingTempPath(dest: string, kind: 'tmp' | 'bak'): string {
   return path.join(path.dirname(dest), `.${path.basename(dest)}.${kind}-${suffix}`);
 }
 
-function cloneRepoToTemp(cloneUrl: string): string {
+function cloneRepoToTemp(cloneUrl: string, expectedHash?: string): string {
   const tmpCloneDir = path.join(
     os.tmpdir(),
     `opencli-clone-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -239,11 +252,31 @@ function cloneRepoToTemp(cloneUrl: string): string {
     throw new PluginError(`Failed to clone plugin: ${getErrorMessage(err)}`, 'Check the repository URL and your network connection.');
   }
 
+  // SHA integrity check: verify cloned commit is descendant of previously trusted hash
+  if (expectedHash) {
+    try {
+      const clonedHash = execFileSync('git', ['-C', tmpCloneDir, 'rev-parse', 'HEAD'], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      execFileSync('git', ['-C', tmpCloneDir, 'merge-base', '--is-ancestor', expectedHash, clonedHash], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch {
+      fs.rmSync(tmpCloneDir, { recursive: true, force: true });
+      throw new PluginError(
+        `Plugin integrity check failed: the cloned repository at ${cloneUrl} does not descend from the previously trusted commit ${expectedHash}. This may indicate a supply chain attack or force-pushed history.`,
+        'If you trust the new source, uninstall the plugin first, then reinstall.',
+      );
+    }
+  }
+
   return tmpCloneDir;
 }
 
-function withTempClone<T>(cloneUrl: string, work: (cloneDir: string) => T): T {
-  const tmpCloneDir = cloneRepoToTemp(cloneUrl);
+function withTempClone<T>(cloneUrl: string, work: (cloneDir: string) => T, expectedHash?: string): T {
+  const tmpCloneDir = cloneRepoToTemp(cloneUrl, expectedHash);
   try {
     return work(tmpCloneDir);
   } finally {
@@ -562,6 +595,8 @@ function hasOwnDependencies(dir: string): boolean {
 function installDependencies(dir: string): void {
   const pkgJsonPath = path.join(dir, 'package.json');
   if (!fs.existsSync(pkgJsonPath)) return;
+
+  validateWindowsShellPath(dir, `npm install cwd: ${dir}`);
 
   try {
     execFileSync('npm', ['install', '--omit=dev'], {
@@ -1149,7 +1184,7 @@ export function updatePlugin(name: string): void {
           writeLockFile(lock);
         },
       );
-    });
+    }, lockEntry?.commitHash);
     return;
   }
 
@@ -1173,7 +1208,7 @@ export function updatePlugin(name: string): void {
         writeLockFile(lock);
       }
     });
-  });
+  }, lockEntry?.commitHash);
 }
 
 export interface UpdateResult {
@@ -1530,6 +1565,8 @@ function transpilePluginTs(pluginDir: string): void {
       if (fs.existsSync(jsPath)) continue;
 
       try {
+        validateWindowsShellPath(pluginDir, `esbuild cwd: ${pluginDir}`);
+        validateWindowsShellPath(tsFile, `esbuild source file: ${tsFile}`);
         execFileSync(esbuildBin, [tsFile, `--outfile=${jsFile}`, '--format=esm', '--platform=node'], {
           cwd: pluginDir,
           encoding: 'utf-8',

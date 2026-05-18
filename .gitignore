@@ -1,6 +1,8 @@
 node_modules/
 dist/
 !extension/dist/
+bun.lock
+extension/bun.lock
 *.tsbuildinfo
 .opencli/
 .worktrees/

@@ -8,6 +8,7 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "packageManager": "npm@11.6.2",
   "type": "module",
   "main": "dist/src/main.js",
   "bin": {
