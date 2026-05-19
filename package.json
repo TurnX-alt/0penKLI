@@ -8,7 +8,7 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "npm@11.6.2",
+  "packageManager": "pnpm@10.26.2",
   "type": "module",
   "main": "dist/src/main.js",
   "bin": {
@@ -42,7 +42,7 @@
   "scripts": {
     "dev": "tsx src/main.ts",
     "dev:bun": "bun src/main.ts",
-    "build": "npm run clean-dist && npm run copy-yaml && npm run build-manifest",
+    "build": "pnpm run clean-dist && pnpm run copy-yaml && pnpm run build-manifest",
     "prebuild-manifest": "tsc --build && node -e \"require('fs').chmodSync('dist/src/main.js', 0o755)\"",
     "build-manifest": "tsx src/build-manifest.ts",
     "clean-dist": "node scripts/clean-dist.cjs",
@@ -52,8 +52,8 @@
     "preuninstall": "node -e \"fetch('http://127.0.0.1:'+(process.env.OPENCLI_DAEMON_PORT||'19825')+'/shutdown',{method:'POST',headers:{'X-OpenCLI':'1'},signal:AbortSignal.timeout(3000)}).catch(()=>{})\" || true",
     "postinstall": "node scripts/postinstall.js || true; node scripts/fetch-adapters.js || true",
     "typecheck": "tsc --noEmit",
-    "prepare": "[ -d src ] && npm run build || true",
-    "prepublishOnly": "npm run build",
+    "prepare": "[ -d src ] && pnpm run build || true",
+    "prepublishOnly": "pnpm run build",
     "test": "vitest run --project unit --project extension --project adapter",
     "test:bun": "bun vitest run --project unit --project extension --project adapter",
     "test:adapter": "vitest run --project adapter",
