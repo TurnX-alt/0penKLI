@@ -27,16 +27,19 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       # Guard: committed cli-manifest.json must match the one build regenerates.
       # Prevents silent drift where unrelated adapter entries vanish or change
@@ -46,7 +49,7 @@ jobs:
         shell: bash
         run: |
           if ! git diff --exit-code -- cli-manifest.json; then
-            echo "::error::cli-manifest.json is out of sync with the source. Run 'npm run build' and commit the result."
+            echo "::error::cli-manifest.json is out of sync with the source. Run 'pnpm run build' and commit the result."
             exit 1
           fi
 
@@ -55,14 +58,14 @@ jobs:
       # this gate rejects newly introduced drops while allowing incremental cleanup.
       - name: Check silent column drops
         if: runner.os == 'Linux'
-        run: npm run check:silent-column-drop
+        run: pnpm run check:silent-column-drop
 
       # Guard: adapters should fail with typed errors instead of silently
       # returning empty arrays, clamping user input, or inventing sentinel data.
       # Existing findings are tracked in scripts/typed-error-lint-baseline.json.
       - name: Check typed-error lint baseline
         if: runner.os == 'Linux'
-        run: npm run check:typed-error-lint
+        run: pnpm run check:typed-error-lint
 
   # ── Unit tests (vitest shard) ──
   # PR: ubuntu + Node 22 only (fast feedback, 2 jobs).
@@ -81,13 +84,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run unit tests (Node ${{ matrix.node-version }}, shard ${{ matrix.shard }}/2)
-        run: npx vitest run --project unit --project extension --reporter=verbose --shard=${{ matrix.shard }}/2
+        run: pnpm exec vitest run --project unit --project extension --reporter=verbose --shard=${{ matrix.shard }}/2
 
   # ── Bun compatibility check ──
   bun-test:
@@ -102,10 +108,13 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run unit tests under Bun
         run: bun vitest run --project unit --reporter=verbose
@@ -124,13 +133,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run focused adapter tests
-        run: npm run test:adapter -- --reporter=verbose
+        run: pnpm run test:adapter -- --reporter=verbose
 
   # ── Smoke tests (scheduled / manual only) ──
   smoke-test:
@@ -149,25 +161,28 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Setup Chrome
         uses: ./.github/actions/setup-chrome
         id: setup-chrome
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Run smoke tests (Linux, via xvfb)
         if: runner.os == 'Linux'
         run: |
           xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" \
-            npx vitest run tests/smoke/ --reporter=verbose
+            pnpm exec vitest run tests/smoke/ --reporter=verbose
 
       - name: Run smoke tests (macOS / Windows)
         if: runner.os != 'Linux'
-        run: npx vitest run tests/smoke/ --reporter=verbose
+        run: pnpm exec vitest run tests/smoke/ --reporter=verbose
     timeout-minutes: 15

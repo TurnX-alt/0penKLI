@@ -20,20 +20,23 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       # Build before the manifest drift gate: adapter modules import
       # @jackwener/opencli/* through package exports, which resolve to dist/.
       # A fresh release checkout has no dist/ until the full build runs.
       - name: Build package and verify cli-manifest.json is up-to-date
         run: |
-          npm run build
+          pnpm run build
           if ! git diff --exit-code -- cli-manifest.json; then
-            echo "::error::cli-manifest.json drift detected at release time. Run 'npm run build' locally and commit the result before tagging."
+            echo "::error::cli-manifest.json drift detected at release time. Run 'pnpm run build' locally and commit the result before tagging."
             exit 1
           fi
 
