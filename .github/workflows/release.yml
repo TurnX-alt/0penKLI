@@ -15,14 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.2
-
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -30,9 +29,6 @@ jobs:
       - name: Type check
         run: pnpm exec tsc --noEmit
 
-      # Build before the manifest drift gate: adapter modules import
-      # @jackwener/opencli/* through package exports, which resolve to dist/.
-      # A fresh release checkout has no dist/ until the full build runs.
       - name: Build package and verify cli-manifest.json is up-to-date
         run: |
           pnpm run build

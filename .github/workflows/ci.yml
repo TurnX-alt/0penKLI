@@ -24,14 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.2
-
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -42,9 +40,6 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      # Guard: committed cli-manifest.json must match the one build regenerates.
-      # Prevents silent drift where unrelated adapter entries vanish or change
-      # across PRs (agent hits unexpected manifest diff → surgical-merge churn).
       - name: Check cli-manifest.json is up-to-date
         if: runner.os == 'Linux'
         shell: bash
@@ -54,23 +49,15 @@ jobs:
             exit 1
           fi
 
-      # Guard: adapter rows must not silently emit keys omitted from `columns`.
-      # Existing findings are tracked in scripts/silent-column-drop-baseline.json;
-      # this gate rejects newly introduced drops while allowing incremental cleanup.
       - name: Check silent column drops
         if: runner.os == 'Linux'
         run: pnpm run check:silent-column-drop
 
-      # Guard: adapters should fail with typed errors instead of silently
-      # returning empty arrays, clamping user input, or inventing sentinel data.
-      # Existing findings are tracked in scripts/typed-error-lint-baseline.json.
       - name: Check typed-error lint baseline
         if: runner.os == 'Linux'
         run: pnpm run check:typed-error-lint
 
   # ── Unit tests (vitest shard) ──
-  # PR: ubuntu + Node 22 only (fast feedback, 2 jobs).
-  # Push to main/dev: full matrix for cross-platform/cross-version coverage (12 jobs).
   unit-test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -82,14 +69,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.2
-
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -107,14 +92,12 @@ jobs:
         with:
           bun-version: 1.3.5
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.2
-
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -122,10 +105,7 @@ jobs:
       - name: Run unit tests under Bun
         run: bun vitest run --project unit --reporter=verbose
 
-  # Adapter tests are pure unit tests — OS doesn't affect results. Gated off
-  # `pull_request` to keep PR CI under ~2 minutes; adapter authors run focused
-  # tests locally before pushing, and `push` to main / nightly cron / manual
-  # dispatch still guard the merged state.
+  # Adapter tests are pure unit tests — OS doesn't affect results.
   adapter-test:
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -133,14 +113,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.2
-
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -156,20 +134,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # NOTE: Windows excluded — browser-actions/setup-chrome hangs during
-        # Chrome MSI installation on Windows runners (known issue).
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.2
-
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.26.2
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
