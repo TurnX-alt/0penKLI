@@ -1,5 +1,6 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjz7cZUUb+HF4Ttdh3XYrIVBpTNO2xLDF0AXAqGmYEBS/PwEOuuZfyFJeFE9tj05YbpygZC2uxVwqEWBsUcnAGFHeGgvUOer1nY9CuHzL4Pbvh9BdKwgwGVXEckUMJFIBaO7mF0kcrbQEofMrcgKv2jVFRMZoFCPpTykV6ucrA6GdxjFhDr4ZqLaom734wFLzW1C5vilEMegbJkNYZrGLkVm2nj99p1JFMJJJ40jvuCiGlGeK3Fvo8rjui81OKCBs/1OHsVD9DQiSghOFT4Mp9IXI4qKmt72BbavqPqGhED/1QZeQiydo20c6BDsHzVLjZ0EDfb8DT1TI3rercoDGqQIDAQAB",
   "name": "OpenCLI",
   "version": "1.0.15",
   "description": "Browser automation bridge for the OpenCLI CLI tool. Executes commands in Chrome tab leases via a local daemon.",
