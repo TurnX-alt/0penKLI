@@ -50,8 +50,13 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Install extension dependencies
+        run: npm ci
+        working-directory: extension
+
       - name: Build extension
-        run: npm run build --prefix extension
+        run: npm run build
+        working-directory: extension
 
       - name: Run AX Chrome smoke (Linux, via xvfb)
         if: runner.os == 'Linux'
