@@ -45,6 +45,7 @@ jobs:
         if: steps.check.outputs.skip == 'false'
         id: merge
         run: |
+          git checkout -B main
           if git merge upstream/main --no-edit -m "sync: merge upstream/main into security-hardened fork"; then
             echo "success=true" >> $GITHUB_OUTPUT
           else
@@ -55,7 +56,7 @@ jobs:
 
       - name: Push merged changes
         if: steps.merge.outputs.success == 'true'
-        run: git push origin main
+        run: git push origin HEAD:main
 
       - name: Create conflict issue
         if: steps.merge.outputs.success == 'false'
@@ -64,15 +65,7 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const { data: existing } = await github.rest.issues.listForRepo({
-              owner, repo, state: 'open',
-              labels: ['upstream-sync-conflict']
-            });
-            if (existing.length === 0) {
-              await github.rest.issues.create({
-                owner, repo,
-                title: '[AUTO] 上游合并冲突 -- 需手动处理',
-                body: `## 上游同步冲突
+            const body = `## 上游同步冲突
 
 自动合并 \`upstream/main\` (jackwener/OpenCLI) 时发生冲突。
 
@@ -89,7 +82,27 @@ git push origin main
 \`\`\`
 
 ### 注意
-安全加固改动（lockfile 统一、shell 路径校验、插件 SHA 完整性验证）可能与上游新代码冲突，请仔细审查并确保安全加固不被覆盖。`,
+安全加固改动（lockfile 统一、shell 路径校验、插件 SHA 完整性验证）可能与上游新代码冲突，请仔细审查并确保安全加固不被覆盖。`;
+            try {
+              const { data: existing } = await github.rest.issues.listForRepo({
+                owner, repo, state: 'open',
                 labels: ['upstream-sync-conflict']
               });
+              if (existing.length === 0) {
+                await github.rest.issues.create({
+                  owner, repo,
+                  title: '[AUTO] 上游合并冲突 -- 需手动处理',
+                  body: body,
+                  labels: ['upstream-sync-conflict']
+                });
+              }
+            } catch (e) {
+              if (e.status === 410 || e.message.includes('disabled')) {
+                core.warning('Issues are disabled in this repository. Writing conflict notice to step summary instead.');
+                core.summary.addHeading('Upstream Merge Conflict', 2);
+                core.summary.addRaw(body, true);
+                await core.summary.write();
+              } else {
+                throw e;
+              }
             }
